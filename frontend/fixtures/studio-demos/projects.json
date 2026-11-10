@@ -1,0 +1,208 @@
+[
+  {
+    "title": "ROLLING",
+    "artist": "Development Admin",
+    "description": "Demo recordings imported from Desktop/Music for local studio testing.",
+    "stage": "demo",
+    "versions": [
+      {
+        "label": "ROLLING DEMO4",
+        "note": "Imported test version: ROLLING DEMO4.wav",
+        "duration": 199.980476,
+        "audio": "rolling-01.mp3"
+      },
+      {
+        "label": "ROLLING DEMO5",
+        "note": "Imported test version: ROLLING DEMO5.mp3",
+        "duration": 196.728125,
+        "audio": "rolling-02.mp3"
+      },
+      {
+        "label": "ROLLING DEMO6",
+        "note": "Imported test version: ROLLING DEMO6.wav",
+        "duration": 197.617188,
+        "audio": "rolling-03.mp3"
+      },
+      {
+        "label": "ROLLING DEMO7",
+        "note": "Imported test version: ROLLING DEMO7.wav",
+        "duration": 198.93229,
+        "audio": "rolling-04.mp3"
+      },
+      {
+        "label": "ROLLING DEMO8",
+        "note": "Imported test version: ROLLING DEMO8.wav",
+        "duration": 201.380204,
+        "audio": "rolling-05.mp3"
+      },
+      {
+        "label": "ROLLING DEMO9",
+        "note": "Imported test version: ROLLING DEMO9.wav",
+        "duration": 198.216145,
+        "audio": "rolling-06.mp3"
+      },
+      {
+        "label": "ROLLING NEW MIX",
+        "note": "Imported test version: ROLLING NEW MIX.wav",
+        "duration": 338.27449,
+        "audio": "rolling-07.mp3"
+      },
+      {
+        "label": "ROLLING NEWMIX2",
+        "note": "Imported test version: ROLLING NEWMIX2.wav",
+        "duration": 199.101565,
+        "audio": "rolling-08.mp3"
+      },
+      {
+        "label": "ROLLING MAStER3",
+        "note": "Imported test version: ROLLING MAStER3.wav",
+        "duration": 197.42839,
+        "audio": "rolling-09.mp3"
+      },
+      {
+        "label": "ROLLIN SPDB",
+        "note": "Imported test version: ROLLIN SPDB.wav",
+        "duration": 349.63542,
+        "audio": "rolling-10.mp3"
+      }
+    ],
+    "cover": "rolling.jpg"
+  },
+  {
+    "title": "em? / iem",
+    "artist": "Development Admin",
+    "description": "Demo recordings imported from Desktop/Music for local studio testing.",
+    "stage": "demo",
+    "versions": [
+      {
+        "label": "em?",
+        "note": "Imported test version: em?.mp3",
+        "duration": 44.112,
+        "audio": "em-iem-01.mp3"
+      },
+      {
+        "label": "em?",
+        "note": "Imported test version: em?.wav",
+        "duration": 116.144229,
+        "audio": "em-iem-02.mp3"
+      },
+      {
+        "label": "iem hlong demo",
+        "note": "Imported test version: iem hlong demo.mp3",
+        "duration": 42.792,
+        "audio": "em-iem-03.mp3"
+      },
+      {
+        "label": "iem",
+        "note": "Imported test version: iem.wav",
+        "duration": 169.411769,
+        "audio": "em-iem-04.mp3"
+      }
+    ],
+    "cover": "em-iem.jpg"
+  },
+  {
+    "title": "y xi em",
+    "artist": "Development Admin",
+    "description": "Demo recordings imported from Desktop/Music for local studio testing.",
+    "stage": "demo",
+    "versions": [
+      {
+        "label": "y xi em (demo)",
+        "note": "Imported test version: y xi em (demo).mp3",
+        "duration": 213.48,
+        "audio": "y-xi-em-01.mp3"
+      },
+      {
+        "label": "yxiem1607",
+        "note": "Imported test version: yxiem1607.wav",
+        "duration": 238.229167,
+        "audio": "y-xi-em-02.mp3"
+      },
+      {
+        "label": "YXIEM DEMO10",
+        "note": "Imported test version: YXIEM DEMO10.wav",
+        "duration": 238.229167,
+        "audio": "y-xi-em-03.mp3"
+      },
+      {
+        "label": "y xi em new mix",
+        "note": "Imported test version: y xi em new mix.wav",
+        "duration": 254.711542,
+        "audio": "y-xi-em-04.mp3"
+      }
+    ],
+    "cover": "y-xi-em.jpg"
+  },
+  {
+    "title": "DEPOP",
+    "artist": "Development Admin",
+    "description": "Demo recordings imported from Desktop/Music for local studio testing.",
+    "stage": "demo",
+    "versions": [
+      {
+        "label": "depop demo",
+        "note": "Imported test version: depop demo.mp3",
+        "duration": 118.491417,
+        "audio": "depop-01.mp3"
+      },
+      {
+        "label": "depop demo2",
+        "note": "Imported test version: depop demo2.wav",
+        "duration": 207.956735,
+        "audio": "depop-02.mp3"
+      },
+      {
+        "label": "depop demo3",
+        "note": "Imported test version: depop demo3.wav",
+        "duration": 207.956735,
+        "audio": "depop-03.mp3"
+      },
+      {
+        "label": "DEPOP demo4",
+        "note": "Imported test version: DEPOP demo4.wav",
+        "duration": 125.572125,
+        "audio": "depop-04.mp3"
+      },
+      {
+        "label": "depop demo5",
+        "note": "Imported test version: depop demo/depop demo5.wav",
+        "duration": 125.557688,
+        "audio": "depop-05.mp3"
+      },
+      {
+        "label": "depop raw demo",
+        "note": "Imported test version: depop demo/depop raw demo.wav",
+        "duration": 184.296188,
+        "audio": "depop-06.mp3"
+      },
+      {
+        "label": "depop open",
+        "note": "Imported test version: depop open.wav",
+        "duration": 214.600952,
+        "audio": "depop-07.mp3"
+      },
+      {
+        "label": "DEPOP stetd",
+        "note": "Imported test version: DEPOP stetd.wav",
+        "duration": 207.956735,
+        "audio": "depop-08.mp3"
+      }
+    ],
+    "cover": "depop.jpg"
+  },
+  {
+    "title": "midsummer",
+    "artist": "hien long",
+    "description": "A private listening room for a warm-weather idea. Sharing early takes with a few trusted ears before opening the doors.",
+    "stage": "demo",
+    "versions": [
+      {
+        "label": "First listening session",
+        "note": "Local sample recording for collaborator feedback.",
+        "duration": 204,
+        "libraryAudio": "songs/midsummer mastered.wav"
+      }
+    ]
+  }
+]

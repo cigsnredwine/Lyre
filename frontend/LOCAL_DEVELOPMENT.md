@@ -87,3 +87,12 @@ Project uploads are stored outside the public frontend assets, in
 For deployment, set `PROJECT_STORAGE_DIR` to a persistent disk location and
 back it up alongside MongoDB. Existing library uploads remain available at
 `/library-upload`; `/upload-music` now opens the artist studio.
+
+## Bundled studio demos
+
+After starting the local backend, run `node scripts/seed-bundled-demos.mjs`
+from `frontend` to add ROLLING, em? / iem, y xi em, DEPOP, and midsummer.
+The bundle includes 27 audio versions and four gallery covers. WAV demos in
+the bundle are MP3 copies, and midsummer uses the existing library WAV.
+The seed creates private projects and skips existing projects with the same
+name. It copies the assets into local project storage for playback.
