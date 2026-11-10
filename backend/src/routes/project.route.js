@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 import { Project } from '../models/project.model.js';
+import { studioDemoAsset } from '../lib/studio-demo-assets.js';
 const router = Router();
 const storage = path.resolve(process.env.PROJECT_STORAGE_DIR || 'project-storage');
 router.use((req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
@@ -218,8 +219,11 @@ router.get('/:id/media/:versionId', load, wrap(async (req, res) => {
     if (!v || (!collaborator(p, req) && !v.isPublic))
         return res.status(404).end();
     res.set('Cache-Control', 'private, no-store');
-    if (v.file)
-        return res.sendFile(path.join(storage, path.basename(v.file)));
+    if (v.file) {
+        const bundled = studioDemoAsset(v.file, 'audio');
+        if (bundled === null) return res.status(404).end();
+        return res.sendFile(bundled ?? path.join(storage, path.basename(v.file)));
+    }
     // Seeded samples use the existing local media. New uploads are always protected here.
     const publicDir = path.resolve(new URL('../../../frontend/public', import.meta.url).pathname);
     const file = path.resolve(publicDir, `.${v.sourceUrl}`);
@@ -227,8 +231,13 @@ router.get('/:id/media/:versionId', load, wrap(async (req, res) => {
         return res.status(404).end();
     res.sendFile(file);
 }));
-router.get('/:id/cover', load, wrap(async (req, res) => { if (!req.project.coverFile)
-    return res.status(404).end(); res.set('Cache-Control', 'private, no-store'); res.sendFile(path.join(storage, path.basename(req.project.coverFile))); }));
+router.get('/:id/cover', load, wrap(async (req, res) => {
+    const { coverFile } = req.project;
+    if (!coverFile) return res.status(404).end();
+    const bundled = studioDemoAsset(coverFile, 'cover');
+    if (bundled === null) return res.status(404).end();
+    res.sendFile(bundled ?? path.join(storage, path.basename(coverFile)));
+}));
 router.get('/:id/images/:postId', load, wrap(async (req, res) => { const post = req.project.posts.id(req.params.postId); if (!post?.image)
     return res.status(404).end(); res.set('Cache-Control', 'private, no-store'); res.sendFile(path.join(storage, path.basename(post.image))); }));
 export default router;
