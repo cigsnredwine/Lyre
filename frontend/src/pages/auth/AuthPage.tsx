@@ -1,146 +1,134 @@
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import toast from "react-hot-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth-client";
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { authClient } from '@/lib/auth-client';
+import { axiosInstance } from '@/lib/axios';
+import './auth.css';
 
-interface AuthPageProps {
-	mode: "sign-in" | "sign-up";
+function localRedirect(target: string | null) {
+    if (!target?.startsWith('/') || target.startsWith('//') || target.includes('\\')) return '/studio';
+    const url = new URL(target, window.location.origin);
+    if (url.origin !== window.location.origin || url.pathname.startsWith('//')) return '/studio';
+    return url.pathname + url.search + url.hash;
 }
 
-const AuthPage = ({ mode }: AuthPageProps) => {
-	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
-	const [isLoading, setIsLoading] = useState(false);
-	const [authError, setAuthError] = useState("");
-	const [name, setName] = useState("");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+function socialErrorMessage(error: string | null, state: string | null) {
+    if (error === 'access_denied') return 'Social sign-in was cancelled.';
+    if (error === 'account_not_linked') return 'This email already has a Lyre account. Sign in using your original method.';
+    if (error === 'email_not_found') return 'The provider did not share an email address. Try another sign-in method.';
+    if (error || state === 'state_not_found') return 'Social sign-in couldn’t be completed. Try again.';
+    return '';
+}
 
-	const isSignUp = mode === "sign-up";
-	const localLogin = import.meta.env.DEV && import.meta.env.VITE_LOCAL_TEST_AUTH === "true";
+export default function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const [providers, setProviders] = useState<string[]>([]);
+    const [pending, setPending] = useState<'email' | 'google' | null>(null);
+    const [authError, setAuthError] = useState('');
+    const isSignUp = mode === 'sign-up';
+    const localLogin = import.meta.env.DEV && import.meta.env.VITE_LOCAL_TEST_AUTH === 'true';
+    const redirect = localRedirect(searchParams.get('redirect'));
+    const nextQuery = new URLSearchParams({ redirect }).toString();
+    const callbackError = socialErrorMessage(searchParams.get('error'), searchParams.get('state'));
+    const googleEnabled = providers.includes('google');
 
-	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		setAuthError("");
-		setIsLoading(true);
 
-		try {
-			if (isSignUp) {
-				const response = await authClient.signUp.email({
-					name,
-					email,
-					password,
-				});
+    useEffect(() => {
+        const controller = new AbortController();
+        axiosInstance.get<{ providers: string[] }>('/app-auth/providers', { signal: controller.signal })
+            .then(({ data }) => {
+                if (!controller.signal.aborted && Array.isArray(data.providers)) setProviders(data.providers);
+            })
+            .catch(() => {});
+        return () => controller.abort();
+    }, []);
 
-				if (response.error) {
-					throw new Error(response.error.message || "Unable to create account");
-				}
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const email = String(form.get('email') ?? '').trim();
+        const password = String(form.get('password') ?? '');
+        setAuthError('');
+        setPending('email');
+        try {
+            const result = isSignUp
+                ? await authClient.signUp.email({ name: String(form.get('name') ?? '').trim(), email, password })
+                : await authClient.signIn.email({ email: localLogin && email === 'admin' ? 'admin@lyre.test' : email, password });
+            if (result.error) {
+                setAuthError(isSignUp ? result.error.message || 'Unable to create account.' : 'Couldn’t sign in. Check your email and password.');
+                return;
+            }
+            toast.success(isSignUp ? 'Account created' : 'Signed in');
+            navigate(redirect, { replace: true });
+        } catch {
+            setAuthError('Couldn’t reach Lyre. Try again.');
+        } finally {
+            setPending(null);
+        }
+    }
 
-				toast.success("Account created successfully");
-			} else {
-				const response = await authClient.signIn.email({
-					email: localLogin && email.trim() === "admin" ? "admin@lyre.test" : email,
-					password,
-				});
+    async function continueWithGoogle() {
+        setAuthError('');
+        setPending('google');
+        try {
+            const result = await authClient.signIn.social({
+                provider: 'google',
+                callbackURL: new URL(redirect, window.location.origin).href,
+                errorCallbackURL: new URL(`${isSignUp ? '/signup' : '/login'}?${nextQuery}`, window.location.origin).href,
+            });
+            if (result.error) setAuthError('Couldn’t start social sign-in. Try again.');
+        } catch {
+            setAuthError('Couldn’t reach Lyre. Try again.');
+        } finally {
+            setPending(null);
+        }
+    }
 
-				if (response.error) {
-					throw new Error(response.error.message || "Unable to sign in");
-				}
+    return (
+        <main className="lyre-auth">
+            <div className="lyre-auth-panel">
+                <Link to="/" className="lyre-auth-wordmark" aria-label="Lyre home">lyre</Link>
+                <h1 className="sr-only">{isSignUp ? 'Create your account' : 'Sign in to Lyre'}</h1>
 
-				toast.success("Signed in successfully");
-			}
+                {(authError || callbackError) && <p role="alert" className="lyre-auth-error">{authError || callbackError}</p>}
+                <form className="lyre-auth-form" onSubmit={handleSubmit} onChange={() => setAuthError('')}>
+                    {isSignUp && <label>
+                        <span>Name</span>
+                        <input name="name" autoComplete="name" required />
+                    </label>}
+                    <label>
+                        <span>{localLogin && !isSignUp ? 'Email or username' : 'Email address'}</span>
+                        <input name="email" type={localLogin && !isSignUp ? 'text' : 'email'} autoComplete={isSignUp ? 'email' : 'username'} required />
+                    </label>
+                    <label>
+                        <span>Password</span>
+                        <input name="password" type="password" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={isSignUp ? 8 : undefined} required />
+                        {isSignUp && <small>At least 8 characters</small>}
+                    </label>
+                    <button type="submit" className="lyre-auth-submit" disabled={pending !== null}>
+                        {pending === 'email' ? 'Working…' : isSignUp ? 'Create account' : 'Log in'}
+                    </button>
+                </form>
 
-			const target = searchParams.get("redirect");
-			navigate(target?.startsWith("/") && !target.startsWith("//") ? target : "/studio");
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : "Authentication failed";
+                {(googleEnabled || import.meta.env.DEV) && <div className="lyre-auth-social">
+                    <div className="lyre-auth-divider">or</div>
+                    <div className="lyre-auth-provider-list">
+                        <button type="button" className="lyre-auth-google" disabled={pending !== null || !googleEnabled}
+                            onClick={() => void continueWithGoogle()}>
+                            {pending === 'google' ? 'Connecting to Google…' : 'Continue with Google'}
+                        </button>
+                    </div>
+                    {!googleEnabled && <p className="lyre-auth-provider-help">Google sign-in needs server credentials.</p>}
+                </div>}
 
-			if (!isSignUp && /invalid|wrong password|password/i.test(errorMessage)) {
-				setAuthError("Wrong password. Try again.");
-			} else {
-				toast.error(errorMessage);
-			}
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	return (
-		<div className='auth-page min-h-dvh bg-black text-white flex items-center justify-center p-6'>
-			<Card className='w-full max-w-md bg-zinc-900 border-zinc-800'>
-				<CardHeader>
-					<CardTitle>{isSignUp ? "Create your account" : "Sign in to Lyre"}</CardTitle>
-					<CardDescription>
-						{isSignUp ? "Start uploading, chatting, and listening." : "Welcome back."}
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<form className='space-y-4' onSubmit={handleSubmit}>
-						{isSignUp && (
-							<div className='space-y-2'>
-								<label className='text-sm font-medium'>Name</label>
-								<Input
-									value={name}
-									onChange={(event) => {
-										setName(event.target.value);
-										setAuthError("");
-									}}
-									className='bg-zinc-800 border-zinc-700'
-									placeholder='Your name'
-									required
-								/>
-							</div>
-						)}
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>{localLogin && !isSignUp ? "Email or username" : "Email"}</label>
-							<Input
-								type={localLogin && !isSignUp ? "text" : "email"}
-								value={email}
-								onChange={(event) => {
-									setEmail(event.target.value);
-									setAuthError("");
-								}}
-								className='bg-zinc-800 border-zinc-700'
-								placeholder='you@example.com'
-								required
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>Password</label>
-							<Input
-								type='password'
-								value={password}
-								onChange={(event) => {
-									setPassword(event.target.value);
-									setAuthError("");
-								}}
-								className='bg-zinc-800 border-zinc-700'
-								placeholder={localLogin ? "Password" : "At least 8 characters"}
-								required
-							/>
-							{authError && <p className='text-sm text-red-500'>{authError}</p>}
-						</div>
-
-						<Button type='submit' className='w-full' disabled={isLoading}>
-							{isLoading ? "Working..." : isSignUp ? "Create Account" : "Sign In"}
-						</Button>
-					</form>
-
-					<p className='mt-4 text-sm text-zinc-400'>
-						{isSignUp ? "Already have an account?" : "Need an account?"}{" "}
-						<Link to={isSignUp ? "/login" : "/signup"} className='text-primary hover:underline'>
-							{isSignUp ? "Sign in" : "Create one"}
-						</Link>
-					</p>
-				</CardContent>
-			</Card>
-		</div>
-	);
-};
-
-export default AuthPage;
+                <p className="lyre-auth-switch">
+                    {isSignUp ? 'Already have an account?' : 'Don’t have an account?'}{' '}
+                    <Link to={`${isSignUp ? '/login' : '/signup'}?${nextQuery}`}>
+                        {isSignUp ? 'Sign in' : 'Create one'}
+                    </Link>
+                </p>
+            </div>
+        </main>
+    );
+}

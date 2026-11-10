@@ -7,11 +7,21 @@ import path from 'node:path';
 const frontend = fileURLToPath(new URL('../', import.meta.url));
 const backend = path.resolve(frontend, '../backend');
 const localDir = path.join(frontend, 'runtime.local');
+const requireBackend = createRequire(path.join(backend, 'package.json'));
+// Read only Google credentials from these files. Local auth and database settings are isolated below.
+for (const file of [path.join(localDir, 'oauth.env'), path.join(backend, '.env')]) {
+  if (!existsSync(file)) continue;
+  const oauth = requireBackend('dotenv').parse(readFileSync(file));
+  for (const key of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']) {
+    if (oauth[key]) process.env[key] ??= oauth[key];
+  }
+}
+
 mkdirSync(localDir, { recursive: true });
 const secretFile = path.join(localDir, 'auth-secret');
 if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString('hex'), { mode: 0o600 });
 
-// Run outside backend/.env so production credentials are never loaded.
+// Use the isolated runtime directory and local service configuration.
 process.chdir(localDir);
 Object.assign(process.env, {
   NODE_ENV: 'development',
@@ -28,7 +38,6 @@ Object.assign(process.env, {
   DEPLOYMENT_URL: '',
 });
 
-const requireBackend = createRequire(path.join(backend, 'package.json'));
 const { MongoClient } = await import(pathToFileURL(requireBackend.resolve('mongodb')));
 const { betterAuth } = await import(pathToFileURL(requireBackend.resolve('better-auth')));
 const { mongodbAdapter } = await import(pathToFileURL(requireBackend.resolve('better-auth/adapters/mongodb')));

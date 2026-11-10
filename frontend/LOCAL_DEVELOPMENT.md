@@ -107,3 +107,17 @@ LYRE_SEED_EMAIL=you@example.com node scripts/seed-local.mjs
 
 The library seed assigns new and unowned seeded songs and albums to that
 account. The project seed creates the bundle in that account's studio.
+
+## Google sign-in
+
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the backend environment.
+For local testing, the runner reads these two keys from `frontend/runtime.local/oauth.env`
+or `backend/.env`, in that order. Restart the backend after changing credentials.
+Keep these values in ignored files or the hosting service's secret settings.
+
+Register `http://localhost:5001/api/auth/callback/google` in Google Cloud for
+local development. For deployed Lyre, register the same path under
+`BETTER_AUTH_URL`, currently `https://lyre-ojbk.onrender.com`.
+Google sign-in reuses a matching Lyre account when Google confirms a Gmail or
+Workspace address. Linking an unverified Lyre account retires its old password
+and sessions. Accounts with verified Lyre email keep both sign-in methods.

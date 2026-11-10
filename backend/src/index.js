@@ -32,9 +32,10 @@ const CLIENT_URLS = (process.env.CLIENT_URL || "http://localhost:3000")
     .map((url) => url.trim())
     .filter(Boolean);
 
+const authOrigin = new URL(process.env.BETTER_AUTH_URL || "http://localhost:5001").origin;
 const isAllowedOrigin = (origin) => {
     if (!origin) return true;
-    return CLIENT_URLS.includes(origin);
+    return origin === authOrigin || CLIENT_URLS.includes(origin);
 };
 
 const httpServer = createServer(app);
@@ -43,14 +44,11 @@ const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024;
 
 app.use(cors({
     origin(origin, callback) {
-        if (isAllowedOrigin(origin)) {
-            return callback(null, true);
-        }
-
+        if (isAllowedOrigin(origin)) return callback(null, true);
         callback(new Error(`CORS blocked for origin: ${origin}`));
     },
-    credentials: true
-}))
+    credentials: true,
+}));
 app.use("/api/auth", toNodeHandler(auth));
 app.use(express.json()); // to parse req.body
 app.use(fileUpload({

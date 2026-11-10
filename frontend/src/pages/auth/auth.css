@@ -1,0 +1,59 @@
+.lyre-auth {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 36px 24px;
+    background: radial-gradient(ellipse at 50% 5%, #242b37, transparent 62%), #14171e;
+    color: #eeedf0;
+}
+
+.lyre-auth-panel { width: min(100%, 420px); }
+.lyre-auth-wordmark {
+    display: table;
+    margin: 0 auto clamp(32px, 7vh, 60px);
+    color: #f5f2ee;
+    font: 500 52px/1 'Lora Variable', Georgia, serif;
+    letter-spacing: -.075em;
+}
+.lyre-auth-form { display: grid; gap: 19px; }
+.lyre-auth-form label { display: grid; gap: 3px; color: #c5c7ce; font-size: 14px; }
+.lyre-auth-form input {
+    width: 100%;
+    min-width: 0;
+    min-height: 35px;
+    padding: 4px 0 8px;
+    color: #f5f4f6;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #606575;
+    border-radius: 0;
+    outline: none;
+    font-size: 16px;
+    transition: border-color 160ms;
+}
+.lyre-auth-form input:focus { border-color: #a9c8eb; }
+.lyre-auth-form small, .lyre-auth-provider-help { color: #a3a9b7; font-size: 12px; }
+.lyre-auth button {
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 160ms, border-color 160ms;
+}
+.lyre-auth button:disabled { cursor: not-allowed; opacity: .52; }
+.lyre-auth-submit { margin-top: 5px; background: #9cbbde; color: #151b26; }
+.lyre-auth-submit:not(:disabled):hover { background: #b2cdeb; }
+.lyre-auth-divider { display: flex; align-items: center; gap: 13px; margin: 22px 0; color: #c5c7ce; font-size: 14px; }
+.lyre-auth-divider::before, .lyre-auth-divider::after { content: ''; flex: 1; height: 1px; background: #525764; }
+.lyre-auth-provider-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.lyre-auth-provider-list button { flex: 1; border-color: #51596a; background: #1e2430; color: #e4e8ef; }
+.lyre-auth-provider-list button:not(:disabled):hover { background: #2a3342; border-color: #8aa7c9; }
+.lyre-auth-provider-list .lyre-auth-google { flex-basis: 100%; background: #f4f5f7; color: #252a32; border-color: #f4f5f7; }
+.lyre-auth-provider-list .lyre-auth-google:not(:disabled):hover { background: #dfe9f6; }
+.lyre-auth-provider-help { margin-top: 9px; }
+.lyre-auth-error { margin-bottom: 18px; color: #ffb6bd; font-size: 14px; }
+.lyre-auth-switch { margin-top: 24px; padding-top: 19px; border-top: 1px solid #525764; text-align: center; font-size: 14px; }
+.lyre-auth-switch a { margin-left: 3px; color: #a9c8eb; font-weight: 650; }
+.lyre-auth-switch a:hover { text-decoration: underline; }
