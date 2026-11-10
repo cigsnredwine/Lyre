@@ -12,8 +12,9 @@ const projects = JSON.parse(await readFile(new URL('projects.json', bundle), 'ut
 const client = await new MongoClient('mongodb://127.0.0.1:27018/lyre_local_test').connect();
 try {
     const db = client.db();
-    const user = await db.collection('user').findOne({ email: 'admin@lyre.test' });
-    if (!user) throw new Error('Start the local backend first to create the studio account.');
+    const email = process.env.LYRE_SEED_EMAIL?.trim().toLowerCase() || 'admin@lyre.test';
+    const user = await db.collection('user').findOne({ email });
+    if (!user) throw new Error(`Create the local Lyre account ${email} before importing demos.`);
     const ownerId = String(user.id || user._id);
     const collection = db.collection('projects');
     await mkdir(storage, { recursive: true });

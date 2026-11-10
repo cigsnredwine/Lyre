@@ -96,3 +96,14 @@ The bundle includes 27 audio versions and four gallery covers. WAV demos in
 the bundle are MP3 copies, and midsummer uses the existing library WAV.
 The seed creates private projects and skips existing projects with the same
 name. It copies the assets into local project storage for playback.
+
+To seed under an existing local account, set `LYRE_SEED_EMAIL` for both
+scripts. Create the account in Lyre first, then run from `frontend`:
+
+```sh
+LYRE_SEED_EMAIL=you@example.com node scripts/seed-bundled-demos.mjs
+LYRE_SEED_EMAIL=you@example.com node scripts/seed-local.mjs
+```
+
+The library seed assigns new and unowned seeded songs and albums to that
+account. The project seed creates the bundle in that account's studio.
