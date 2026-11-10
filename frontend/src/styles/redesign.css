@@ -40,3 +40,15 @@ body{background:#111214;background-image:none;-webkit-font-smoothing:antialiased
 .r-cover-picker:focus-within{outline:2px solid #8eafd1;outline-offset:3px}
 .r-cover-picker input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .r-cover-editor small{flex-basis:100%;color:#96969e}
+
+.r-version-access {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid #ffffff12;
+}
+.r-version-access p { flex: 1 1 200px; color: #a8a8b1; font-size: 12px; }
