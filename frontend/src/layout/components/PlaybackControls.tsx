@@ -1,173 +1,25 @@
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { usePlayerStore } from "@/stores/usePlayerStore";
-import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume1 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { formatDuration } from "@/pages/album/AlbumPage";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Shuffle, SkipBack, SkipForward, Pause, Play, Repeat, ListMusic, X, Disc3 } from 'lucide-react';
+import { usePlayerStore } from '@/stores/usePlayerStore';
+import { useTransportStore } from '@/stores/useTransportStore';
+import { formatDuration } from '@/lib/utils';
+import Waveform from '@/components/redesign/Waveform';
+import Artwork from '@/components/redesign/Artwork';
+export function PlaybackControls() {
+ const { currentSong, isPlaying, togglePlay, playNext, playPrevious, toggleShuffle, cycleRepeatMode, isShuffleEnabled, repeatMode, queue, setCurrentSong } = usePlayerStore();
+ const {time,duration,volume,seek,setVolume}=useTransportStore();
+ const [showQueue,setShowQueue]=useState(false);
+ return <footer className='r-dock' aria-label='Music player'>
+  <div className='r-now-playing'><Artwork key={currentSong?.imageUrl} src={currentSong?.imageUrl}/><div>{currentSong?.projectId?<Link to={`/projects/${currentSong.projectId}`}>{currentSong.title}</Link>:<strong>{currentSong?.title || 'Nothing playing yet'}</strong>}<span>{currentSong?.artist || 'Find something to listen to'}</span></div></div>
+  <div className='r-transport'><button className={isShuffleEnabled?'active':''} onClick={toggleShuffle} disabled={!currentSong} aria-label='Shuffle' aria-pressed={isShuffleEnabled}><Shuffle/></button><button onClick={playPrevious} disabled={!currentSong} aria-label='Previous track'><SkipBack/></button><button className='r-main-play' onClick={togglePlay} disabled={!currentSong} aria-label={isPlaying?'Pause':'Play'}>{isPlaying?<Pause fill='currentColor'/>:<Play fill='currentColor'/>}</button><button onClick={playNext} disabled={!currentSong} aria-label='Next track'><SkipForward/></button><button className={repeatMode!=='off'?'active':''} onClick={cycleRepeatMode} disabled={!currentSong} aria-label={`Repeat ${repeatMode}`}><Repeat/>{repeatMode==='one'&&<small>1</small>}</button></div>
+  <div className='r-dock-wave'><span>{formatDuration(time)}</span><Waveform src={currentSong?.audioUrl} value={time} duration={duration} onSeek={seek}/><span>{formatDuration(duration || currentSong?.duration || 0)}</span></div>
+  <VolumeControl value={volume} onChange={setVolume}/>
+  <button className={`r-queue-toggle ${showQueue?'active':''}`} onClick={()=>setShowQueue(v=>!v)} aria-label='Playback queue' aria-expanded={showQueue}><ListMusic/></button>
+  {showQueue&&<section className='r-queue'><header><h3>Player & queue</h3><button aria-label='Close queue' onClick={()=>setShowQueue(false)}><X size={17}/></button></header><section className='r-queue-volume'><span>Volume</span><VolumeControl value={volume} onChange={setVolume}/></section>{queue.length?queue.map(song=><button key={song._id} onClick={()=>setCurrentSong(song)} className={song._id===currentSong?._id?'selected':''}><Artwork src={song.imageUrl}/><span><strong>{song.title}</strong><small>{song.artist}</small></span>{song._id===currentSong?._id&&<Disc3 size={15}/>}</button>):<p>Your listening queue is empty.</p>}</section>}
+ </footer>;
+}
 
-const getSliderValue = (value: number | readonly number[]) =>
-	Array.isArray(value) ? value[0] ?? 0 : value;
-
-export const PlaybackControls = () => {
-	const {
-		currentSong,
-		isPlaying,
-		togglePlay,
-		playNext,
-		playPrevious,
-		isShuffleEnabled,
-		repeatMode,
-		toggleShuffle,
-		cycleRepeatMode,
-	} = usePlayerStore();
-
-	const [volume, setVolume] = useState(75);
-	const [currentTime, setCurrentTime] = useState(0);
-	const [duration, setDuration] = useState(0);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-
-	useEffect(() => {
-		audioRef.current = document.querySelector("audio");
-
-		const audio = audioRef.current;
-		if (!audio) return;
-
-		const updateTime = () => setCurrentTime(audio.currentTime);
-		const updateDuration = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
-
-		audio.addEventListener("timeupdate", updateTime);
-		audio.addEventListener("loadedmetadata", updateDuration);
-		audio.addEventListener("durationchange", updateDuration);
-
-		return () => {
-			audio.removeEventListener("timeupdate", updateTime);
-			audio.removeEventListener("loadedmetadata", updateDuration);
-			audio.removeEventListener("durationchange", updateDuration);
-		};
-	}, [currentSong]);
-
-	const handleSeek = (value: number | readonly number[]) => {
-		const nextTime = getSliderValue(value);
-		if (audioRef.current) {
-			audioRef.current.currentTime = nextTime;
-		}
-	};
-
-	return (
-		<footer className='rounded-[1.35rem] border-t border-white/8 bg-black/34 px-3 py-3 backdrop-blur-[6px] sm:h-24 sm:px-4 sm:py-0'>
-			<div className='mx-auto flex max-w-[1800px] flex-col gap-3 sm:h-full sm:flex-row sm:items-center sm:justify-between sm:gap-4'>
-				{/* currently playing song */}
-				<div className='flex min-w-0 items-center gap-3 sm:w-[30%] sm:min-w-[180px] sm:gap-4'>
-					{currentSong && (
-						<>
-							<img
-								src={currentSong.imageUrl}
-								alt={currentSong.title}
-								className='h-11 w-11 rounded-md object-cover sm:h-14 sm:w-14'
-							/>
-							<div className='flex-1 min-w-0'>
-								<div className='cursor-pointer truncate text-sm font-medium hover:underline sm:text-base'>
-									{currentSong.title}
-								</div>
-								<div className='cursor-pointer truncate text-xs text-zinc-400 hover:underline sm:text-sm'>
-									{currentSong.artist}
-								</div>
-							</div>
-						</>
-					)}
-				</div>
-
-				{/* player controls*/}
-				<div className='flex flex-1 flex-col items-center gap-2 max-w-full sm:max-w-[45%]'>
-					<div className='flex items-center gap-3 sm:gap-6'>
-						<Button
-							size='icon'
-							variant='ghost'
-							className={`hidden sm:inline-flex hover:text-white ${
-								isShuffleEnabled ? "text-white" : "text-zinc-400"
-							}`}
-							onClick={toggleShuffle}
-							disabled={!currentSong}
-						>
-							<Shuffle className='h-4 w-4' />
-						</Button>
-
-						<Button
-							size='icon'
-							variant='ghost'
-							className='hover:text-white text-zinc-400'
-							onClick={playPrevious}
-							disabled={!currentSong}
-						>
-							<SkipBack className='h-4 w-4' />
-						</Button>
-
-						<Button
-							size='icon'
-							className='play-button-surface size-12 sm:size-8'
-							onClick={togglePlay}
-							disabled={!currentSong}
-						>
-							{isPlaying ? <Pause className='size-5' /> : <Play className='size-5' />}
-						</Button>
-						<Button
-							size='icon'
-							variant='ghost'
-							className='hover:text-white text-zinc-400'
-							onClick={playNext}
-							disabled={!currentSong}
-						>
-							<SkipForward className='h-4 w-4' />
-						</Button>
-						<Button
-							size='icon'
-							variant='ghost'
-							className={`hidden sm:inline-flex hover:text-white ${
-								repeatMode !== "off" ? "text-white" : "text-zinc-400"
-							}`}
-							onClick={cycleRepeatMode}
-							disabled={!currentSong}
-						>
-							<Repeat className='h-4 w-4' />
-						</Button>
-					</div>
-
-					<div className='flex w-full items-center gap-2'>
-						<div className='w-9 text-right text-[11px] text-zinc-400 sm:w-10 sm:text-xs'>{formatDuration(currentTime)}</div>
-						<Slider
-							value={[currentTime]}
-							max={duration || 100}
-							step={1}
-							className='w-full hover:cursor-grab active:cursor-grabbing'
-							onValueChange={handleSeek}
-							disabled={!currentSong}
-						/>
-						<div className='w-9 text-[11px] text-zinc-400 sm:w-10 sm:text-xs'>{formatDuration(duration)}</div>
-					</div>
-				</div>
-				{/* volume controls */}
-				<div className='hidden w-[28%] min-w-[220px] items-center justify-end pr-18 sm:flex'>
-					<div className='flex w-full max-w-[170px] shrink-0 items-center gap-2'>
-						<Button size='icon' variant='ghost' className='hover:text-white text-zinc-400'>
-							<Volume1 className='h-4 w-4' />
-						</Button>
-
-						<Slider
-							value={[volume]}
-							max={100}
-							step={1}
-							className='w-full shrink-0 hover:cursor-grab active:cursor-grabbing [&_[data-slot=slider-track]]:bg-muted [&_[data-slot=slider-range]]:bg-primary'
-							onValueChange={(value) => {
-								const nextVolume = Array.isArray(value) ? value[0] : value;
-								setVolume(nextVolume);
-								if (audioRef.current) {
-									audioRef.current.volume = nextVolume / 100;
-								}
-							}}
-						/>
-					</div>
-				</div>
-			</div>
-		</footer>
-	);
-};
+function VolumeControl({value,onChange}:{value:number;onChange:(value:number)=>void}){
+ return <div className='r-volume'><output>{Math.round(value*100)}%</output><div className='r-volume-ladder' aria-hidden='true'>{Array.from({length:22},(_,i)=><i key={i} className={(i+.5)/22<=value?'filled':''} style={{height:`${15+i*3.8}%`}}/>)}</div><input type='range' aria-label='Volume' min={0} max={100} value={Math.round(value*100)} onChange={e=>onChange(Number(e.target.value)/100)}/></div>;
+}

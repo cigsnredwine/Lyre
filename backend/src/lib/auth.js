@@ -24,9 +24,7 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
-	plugins: [
-    dash({
-      apiKey: process.env.BETTER_AUTH_API_KEY,
-    }),
-  ],
+	plugins: process.env.BETTER_AUTH_API_KEY ? [
+    dash({ apiKey: process.env.BETTER_AUTH_API_KEY }),
+  ] : [],
 });

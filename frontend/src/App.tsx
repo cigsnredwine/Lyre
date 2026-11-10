@@ -1,3 +1,6 @@
+import FollowingPage from "./pages/following/FollowingPage";
+import StudioPage from "./pages/studio/StudioPage";
+import ProjectPage from "./pages/studio/ProjectPage";
 import { Routes, Route } from "react-router-dom"
 import HomePage  from "./pages/home/HomePage"
 import MainLayout from "./layout/MainLayout"
@@ -11,6 +14,7 @@ import BrowsePage from "./pages/browse/BrowsePage"
 import SearchPage from "./pages/search/SearchPage"
 import UploadMusicPage from "./pages/upload-music/UploadMusicPage"
 
+import "./styles/redesign.css";
 
 function App() {
   // token =>
@@ -21,10 +25,14 @@ function App() {
         <Route path="/login" element={<AuthPage mode="sign-in" />} />
         <Route path="/signup" element={<AuthPage mode="sign-up" />} />
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/upload-music" element={<UploadMusicPage />} />
+        <Route path="/library-upload" element={<UploadMusicPage />} />
         <Route path="/profile" element={<ProfilePage />} />
 
         <Route element={<MainLayout />}>
+          <Route path="/upload-music" element={<StudioPage />} />
+          <Route path="/studio" element={<StudioPage />} />
+          <Route path="/projects/:id" element={<ProjectPage />} />
+          <Route path="/following" element={<FollowingPage />} />
           <Route path='/' element={<HomePage />} />
           <Route path='/chat' element={<ChatPage />} />
           <Route path='/albums/:albumId' element={<AlbumPage />} />

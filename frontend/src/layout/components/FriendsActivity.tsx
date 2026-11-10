@@ -1,10 +1,10 @@
+import { useNavigate } from "react-router-dom";
+import FriendManager from "@/components/ui/FriendManager";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { usePlayerStore } from "@/stores/usePlayerStore";
 import { HeadphonesIcon, Music, Users } from "lucide-react";
-import { useEffect } from "react";
 
 const parseActivity = (activity: string | undefined) => {
 	if (!activity || activity === "Idle") {
@@ -31,64 +31,34 @@ const parseActivity = (activity: string | undefined) => {
 };
 
 const FriendsActivity = () => {
-	const { users, fetchUsers, onlineUsers, userActivities, initSocket, disconnectSocket, socket, isConnected } =
-		useChatStore();
-	const { currentUser, isAuthenticated } = useAuthStore();
-	const { currentSong, isPlaying } = usePlayerStore();
-
-	useEffect(() => {
-		if (isAuthenticated) fetchUsers();
-	}, [fetchUsers, isAuthenticated]);
-
-	useEffect(() => {
-		if (!currentUser?.authUserId) {
-			return;
-		}
-
-		initSocket(currentUser.authUserId);
-
-		return () => {
-			disconnectSocket();
-		};
-	}, [currentUser?.authUserId, disconnectSocket, initSocket]);
-
-	useEffect(() => {
-		if (!currentUser?.authUserId || !isConnected) {
-			return;
-		}
-
-		const activity = isPlaying && currentSong
-			? `Playing: ${currentSong.title} - ${currentSong.artist}`
-			: "Idle";
-
-		socket.emit("update_activity", {
-			userId: currentUser.authUserId,
-			activity,
-		});
-	}, [currentSong, currentUser?.authUserId, isConnected, isPlaying, socket]);
+    const navigate = useNavigate();
+	const { users, onlineUsers, userActivities, setSelectedUser } = useChatStore();
+    const { isAuthenticated } = useAuthStore();
 
 	const uniqueUsers = Array.from(new Map(users.map((user) => [user.authUserId, user])).values());
 
 	return (
-		<div className='flex h-full flex-col rounded-xl border border-white/8 bg-black/34 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.14)]'>
+		<div className='friends-panel flex h-full flex-col rounded-xl border border-white/8 bg-black/34 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.14)]'>
 			<div className='flex items-center justify-between border-b border-white/8 p-4'>
 				<div className='flex items-center gap-2'>
 					<Users className='size-5 shrink-0' />
 					<h2 className='font-semibold'>What they're listening to</h2>
 				</div>
+				{isAuthenticated && <FriendManager />}
 			</div>
 
 			{!isAuthenticated && <LoginPrompt />}
 
 			<ScrollArea className='flex-1'>
 				<div className='p-4 space-y-4'>
+					{isAuthenticated && !uniqueUsers.length && <p className="text-sm text-zinc-400">Add friends to see what they’re listening to.</p>}
 					{uniqueUsers.map((user) => {
 						const activity = parseActivity(userActivities.get(user.authUserId));
 
 						return (
-							<div
+							<button type="button" aria-label={`Chat with ${user.fullName}`} onClick={() => { setSelectedUser(user); navigate("/chat"); }}
 								key={user._id}
-								className='group cursor-pointer rounded-md p-3 transition-colors hover:bg-white/6'
+								className='group w-full text-left cursor-pointer rounded-md p-3 transition-colors hover:bg-white/6'
 							>
 								<div className='flex items-start gap-3'>
 									<div className='relative'>
@@ -124,7 +94,7 @@ const FriendsActivity = () => {
 										)}
 									</div>
 								</div>
-							</div>
+							</button>
 						);
 					})}
 				</div>

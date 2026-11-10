@@ -1,11 +1,12 @@
-import { Router } from 'express'
-import { protectRoute } from '../middleware/auth.middleware.js'
-import { getAllUsers, getMessages } from '../controller/user.controller.js';
-
-const router = Router()
-
-router.get("/", protectRoute, getAllUsers);
-router.get("/messages/:userId", protectRoute, getMessages);
-
-
-export default router
+import { Router } from 'express';
+import { protectRoute } from '../middleware/auth.middleware.js';
+import { getAllUsers, getMessages, getSocial, searchUsers, requestFriend, respondRequest } from '../controller/user.controller.js';
+const router = Router();
+router.use(protectRoute);
+router.get('/', getAllUsers);
+router.get('/search', searchUsers);
+router.get('/requests', getSocial);
+router.post('/requests/:userId', requestFriend);
+router.patch('/requests/:id', respondRequest);
+router.get('/messages/:userId', getMessages);
+export default router;

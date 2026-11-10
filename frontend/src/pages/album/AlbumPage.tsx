@@ -1,3 +1,7 @@
+import { formatDuration } from "@/lib/utils";
+import { Link } from "react-router-dom";
+import Topbar from "@/components/ui/Topbar";
+import SongsSectionSkeleton from "@/components/ui/skeletons/SongsSectionSkeleton";
 import { useParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { useMusicStore } from "@/stores/useMusicStore"
@@ -7,11 +11,7 @@ import { Clock, Pause, Play } from "lucide-react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 
 
-export const formatDuration = (duration: number) => {
-    const minutes = Math.floor(duration / 60);
-    const seconds = Math.floor(duration % 60);
-    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`
-}
+
 
 const fallbackGradientStyle: React.CSSProperties = {
     backgroundImage: "linear-gradient(to bottom, rgb(55 147 166 / 0.82), rgb(24 24 27 / 0.82) 52%, rgb(24 24 27) 100%)",
@@ -24,7 +24,7 @@ const toRgb = (red: number, green: number, blue: number, alpha = 1) =>
 
 const AlbumPage = () => {
    const { albumId } = useParams();
-   const { fetchAlbumById, currentAlbum, isLoading } = useMusicStore();
+   const { fetchAlbumById, currentAlbum, isLoading, error } = useMusicStore();
    const {currentSong, isPlaying, playAlbum, togglePlay} = usePlayerStore();
    const [gradientStyle, setGradientStyle] = useState<React.CSSProperties>(fallbackGradientStyle);
 
@@ -110,7 +110,7 @@ const AlbumPage = () => {
     };
    }, [currentAlbum?.imageUrl]);
 
-   if(isLoading || !currentAlbum) return null
+   if (!currentAlbum) return <main className="lyre-page flex h-full min-h-0 flex-col overflow-hidden rounded-sm border border-white/8 bg-black/30"><Topbar/><div className="p-6">{isLoading ? <SongsSectionSkeleton/> : <div className="library-empty"><p>{error || 'Album unavailable'}</p><Link className="section-link" to="/">Back to home</Link></div>}</div></main>
 
    const handlePlayAlbum = () => {
     if(!currentAlbum) return;
@@ -119,7 +119,7 @@ const AlbumPage = () => {
     if(isCurrentAlbumPlaying) togglePlay();
     else {
         // start playing album from beginning
-        playAlbum(currentAlbum.songs, 0); 
+        playAlbum(currentAlbum.songs, 0);
     }
    }
 
@@ -127,9 +127,9 @@ const AlbumPage = () => {
     if (!currentAlbum) return;
     playAlbum(currentAlbum?.songs, index)
    }
-   
+
   return (
-    <div className='h-full overflow-hidden rounded-xl border border-white/8 bg-black/30 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.12)]'>
+    <div className='lyre-page h-full overflow-hidden rounded-sm border border-white/8 bg-black/30 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.12)]'>
         <ScrollArea className='h-full'>
             {/* Main content */}
             <div className='relative min-h-full'>
@@ -142,18 +142,18 @@ const AlbumPage = () => {
 
                 {/* Content */}
                 <div className='relative z-10'>
-                    <div className='flex p-6 gap-6 pb-8'>
+                    <div className='album-hero flex p-5 sm:p-6 gap-5 pb-7'>
                         <img src={currentAlbum.imageUrl} alt={currentAlbum.title}
-                        className='w-60 h-60 shadow-xl rounded object-cover'
+                        className='w-28 h-28 sm:w-44 sm:h-44 shadow-xl rounded-sm object-cover shrink-0'
                         />
                         <div className="flex flex-col justify-end">
                             <p className='text-sm font-medium'>
                                 Album
                             </p>
-                            <h1 className='text-7xl font-bold my-4'>
+                            <h1 className='text-3xl sm:text-5xl font-medium tracking-tight my-3 break-words'>
                                 {currentAlbum.title}
                             </h1>
-                            <div className="flex items-center gap-2 text-sm text-zinc-100">   
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
                                 <span className="font-medium text-white">{currentAlbum.artist}</span>
                                 <span>• {currentAlbum.songs.length} songs</span>
                                 <span>• {currentAlbum.releaseYear}</span>
@@ -179,11 +179,11 @@ const AlbumPage = () => {
                     {/* table section */}
                     <div className="bg-black/20 backdrop-blur-sm">
                     {/* table header */}
-                    <div className='grid grid-cols-[16px_4fr_2fr_1fr] gap-4 px-10 py-2 text-sm text-zinc-400
+                    <div className='grid grid-cols-[16px_minmax(0,1fr)_45px] sm:grid-cols-[16px_minmax(0,4fr)_2fr_45px] gap-4 px-10 py-2 text-sm text-zinc-400
                     border-b border-white/5'>
                         <div>#</div>
                         <div>Title</div>
-                        <div>Release Date</div>
+                        <div className="hidden sm:block">Release Date</div>
                         <div>
                             <Clock className='h-4 w-4' />
                         </div>
@@ -194,12 +194,15 @@ const AlbumPage = () => {
                         <div className="space-y-2 py-4">
                             {currentAlbum?.songs.map((song,index) => {
                                 const isCurrentSong = currentSong?._id === song._id
-                                
+
                                 return (
                                 <div key={song._id}
                                 onClick={() => handlePlaySong(index)}
+                                role="button" tabIndex={0}
+                                onKeyDown={(event) => { if(event.key === "Enter" || event.key === " ") { event.preventDefault(); handlePlaySong(index); } }}
+                                aria-label={`Play ${song.title}`}
                                 className={
-                                    'grid grid-cols-[16px_4fr_2fr_1fr] gap-4 px-4 py-2 text-sm text-zinc-400hover:bg-white/5 rounded-md group cursor-pointer'}>
+                                    'album-track grid grid-cols-[16px_minmax(0,1fr)_45px] sm:grid-cols-[16px_minmax(0,4fr)_2fr_45px] gap-4 px-4 py-2 text-sm text-zinc-400 hover:bg-white/5 rounded-md group cursor-pointer'}>
                                      <div className='flex items-center justify-center'>
                                         {isCurrentSong && isPlaying ? (
                                             <Pause className='size-4 text-primary' />
@@ -211,23 +214,23 @@ const AlbumPage = () => {
                                         )}
                                      </div>
 
-                                     <div className="flex items-center gap-3">
-                                        <img src={song.imageUrl} alt={song.title} 
+                                     <div className="flex min-w-0 items-center gap-3">
+                                        <img src={song.imageUrl} alt={song.title}
                                         className='size-10'/>
 
-                                        <div>
-                                            <div className={'font-medium text-white'}>{song.title}</div>
+                                        <div className="min-w-0">
+                                            <div className={'truncate font-medium text-white'}>{song.title}</div>
                                             <div>{song.artist}</div>
                                         </div>
                                      </div>
-                                    <div className='flex items-center'>{song.createdAt.split("T")[0]}</div>
+                                    <div className='hidden sm:flex items-center'>{song.createdAt.split("T")[0]}</div>
                                     <div className='flex items-center'>{formatDuration(song.duration)}</div>
 
                                 </div>
                             )
-                            })}   
+                            })}
 
-                        </div>   
+                        </div>
 
                     </div>
                     </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ interface AuthPageProps {
 
 const AuthPage = ({ mode }: AuthPageProps) => {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const [isLoading, setIsLoading] = useState(false);
 	const [authError, setAuthError] = useState("");
 	const [name, setName] = useState("");
@@ -19,6 +20,7 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 	const [password, setPassword] = useState("");
 
 	const isSignUp = mode === "sign-up";
+	const localLogin = import.meta.env.DEV && import.meta.env.VITE_LOCAL_TEST_AUTH === "true";
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -40,7 +42,7 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 				toast.success("Account created successfully");
 			} else {
 				const response = await authClient.signIn.email({
-					email,
+					email: localLogin && email.trim() === "admin" ? "admin@lyre.test" : email,
 					password,
 				});
 
@@ -51,7 +53,8 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 				toast.success("Signed in successfully");
 			}
 
-			navigate("/");
+			const target = searchParams.get("redirect");
+			navigate(target?.startsWith("/") && !target.startsWith("//") ? target : "/studio");
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : "Authentication failed";
 
@@ -66,7 +69,7 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 	};
 
 	return (
-		<div className='min-h-screen bg-black text-white flex items-center justify-center p-6'>
+		<div className='auth-page min-h-dvh bg-black text-white flex items-center justify-center p-6'>
 			<Card className='w-full max-w-md bg-zinc-900 border-zinc-800'>
 				<CardHeader>
 					<CardTitle>{isSignUp ? "Create your account" : "Sign in to Lyre"}</CardTitle>
@@ -93,9 +96,9 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 						)}
 
 						<div className='space-y-2'>
-							<label className='text-sm font-medium'>Email</label>
+							<label className='text-sm font-medium'>{localLogin && !isSignUp ? "Email or username" : "Email"}</label>
 							<Input
-								type='email'
+								type={localLogin && !isSignUp ? "text" : "email"}
 								value={email}
 								onChange={(event) => {
 									setEmail(event.target.value);
@@ -117,7 +120,7 @@ const AuthPage = ({ mode }: AuthPageProps) => {
 									setAuthError("");
 								}}
 								className='bg-zinc-800 border-zinc-700'
-								placeholder='At least 8 characters'
+								placeholder={localLogin ? "Password" : "At least 8 characters"}
 								required
 							/>
 							{authError && <p className='text-sm text-red-500'>{authError}</p>}

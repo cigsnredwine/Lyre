@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Topbar from "@/components/ui/Topbar";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { axiosInstance } from "@/lib/axios";
 import type { Album, Song } from "@/types";
 import SongsSection from "@/pages/home/components/SongsSection";
@@ -63,16 +63,16 @@ const BrowsePage = () => {
 	}, [config]);
 
 	if (!config) {
-		return null;
+		return <main className="lyre-page h-full"><Topbar/><div className="library-empty m-6"><p>Collection not found</p><Link className="section-link" to="/">Back to home</Link></div></main>;
 	}
 
 	return (
-		<main className='h-full overflow-hidden rounded-xl border border-white/8 bg-black/30 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.12)]'>
+		<main className='lyre-page flex min-h-0 flex-col h-full overflow-hidden rounded-sm border border-white/8 bg-black/30 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.12)]'>
 			<Topbar />
-			<ScrollArea className='h-[calc(100vh-172px)] sm:h-[calc(100vh-180px)]'>
+			<ScrollArea className='min-h-0 flex-1'>
 				<div className='p-3 sm:p-6'>
 					<div className='mb-6 sm:mb-8'>
-						<h1 className='text-2xl font-bold text-white sm:text-4xl'>{config.title}</h1>
+						<h1 className='text-2xl font-medium tracking-tight text-white sm:text-3xl'>{config.title}</h1>
 						<p className='mt-2 text-sm text-zinc-400'>
 							Explore the full collection for this section.
 						</p>

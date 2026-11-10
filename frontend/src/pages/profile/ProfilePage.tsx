@@ -114,14 +114,14 @@ const ProfilePage = () => {
 	};
 
 	return (
-		<main className='rounded-md overflow-hidden h-full bg-linear-to-b from-zinc-800 to-zinc-900'>
+		<main className='account-page flex min-h-dvh flex-col overflow-hidden'>
 			<Topbar />
 
-			<div className='h-[calc(100vh-180px)] overflow-y-auto'>
+			<div className='flex-1 overflow-y-auto'>
 				<div className='mx-auto max-w-4xl p-6 space-y-6'>
 					<div className='flex items-center justify-between gap-4'>
 						<div>
-							<h1 className='text-3xl font-bold text-white'>Your Profile</h1>
+							<h1 className='text-2xl font-medium tracking-tight text-white'>Your Profile</h1>
 							<p className='text-zinc-400 mt-1'>Update your display name, profile image, and password.</p>
 						</div>
 						<Link to='/' className='text-sm text-primary hover:underline'>

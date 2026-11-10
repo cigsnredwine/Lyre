@@ -1,101 +1,11 @@
-import PlaylistSkeleton from "@/components/ui/skeletons/PlaylistSkeleton";
-import { buttonVariants } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import { useMusicStore } from "@/stores/useMusicStore";
-import { HomeIcon, Library, MessageCircle } from "lucide-react";
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAuthStore } from "@/stores/useAuthStore";
-
-const albumPreviewFallback = "/cover-images/khi nao em tien temp cover.jpg";
-
-const LeftSidebar = () => {
-	const { albums, fetchAlbums, isLoading } = useMusicStore();
-    const { isAuthenticated } = useAuthStore();
-
-	useEffect(() => {
-		fetchAlbums();
-	}, [fetchAlbums]);
-
-	return (
-		<div className='h-full flex flex-col gap-2'>
-			{/* Navigation menu */}
-
-			<div className='rounded-xl border border-white/8 bg-black/34 p-4 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.14)]'>
-				<div className='space-y-2'>
-					<Link
-						to={"/"}
-						className={cn(
-							buttonVariants({
-								variant: "ghost",
-								className: "w-full justify-start text-white hover:bg-zinc-800",
-							})
-						)}
-					>
-						<HomeIcon className='mr-2 size-5' />
-						<span className='hidden md:inline'>Home</span>
-					</Link>
-
-					{isAuthenticated && (
-						<Link
-							to={"/chat"}
-							className={cn(
-								buttonVariants({
-									variant: "ghost",
-									className: "w-full justify-start text-white hover:bg-zinc-800",
-								})
-							)}
-						>
-							<MessageCircle className='mr-2 size-5' />
-							<span className='hidden md:inline'>Messages</span>
-						</Link>
-					)}
-				</div>
-			</div>
-
-			{/* Library section */}
-			<div className='flex-1 rounded-xl border border-white/8 bg-black/34 p-4 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.14)]'>
-				<div className='flex items-center justify-between mb-4'>
-					<div className='flex items-center text-white px-2'>
-						<Library className='size-5 mr-2' />
-						<span className='hidden md:inline'>Playlists</span>
-					</div>
-				</div>
-
-				<ScrollArea className='h-[calc(100vh-300px)]'>
-					<div className='space-y-2'>
-						{isLoading ? (
-							<PlaylistSkeleton />
-						) : (
-							albums.map((album) => (
-								<Link
-									to={`/albums/${album._id}`}
-									key={album._id}
-									className='flex cursor-pointer items-center gap-3 rounded-md p-2 transition-colors hover:bg-white/6 group'
-								>
-									<img
-										src={album.imageUrl}
-										alt='Playlist img'
-										className='size-12 rounded-md shrink-0 object-cover'
-										loading='lazy'
-										onError={(event) => {
-											event.currentTarget.onerror = null;
-											event.currentTarget.src = albumPreviewFallback;
-										}}
-									/>
-
-									<div className='flex-1 min-w-0 hidden md:block'>
-										<p className='font-medium truncate'>{album.title}</p>
-										<p className='text-sm text-zinc-400 truncate'>Album • {album.artist}</p>
-									</div>
-								</Link>
-							))
-						)}
-					</div>
-				</ScrollArea>
-			</div>
-		</div>
-	);
-};
-export default LeftSidebar;
+import { Link, NavLink } from 'react-router-dom';
+import { House, AudioLines, UsersRound, MessageCircle, Plus, ArrowUpRight } from 'lucide-react';
+import { useProjects } from '@/hooks/useProjects';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { media } from '@/pages/studio/project';
+import { stageLabel } from '@/components/redesign/project-utils';
+import Artwork from '@/components/redesign/Artwork';
+export default function LeftSidebar(){
+ const {data,loading}=useProjects('mine');const authenticated=useAuthStore(s=>s.isAuthenticated);
+ return <aside className='r-sidebar'><Link to='/' className='r-wordmark' aria-label='Lyre home'>lyre</Link><nav aria-label='Main navigation'>{[{to:'/',label:'Discover',icon:House},{to:'/studio',label:'My studio',icon:AudioLines},{to:'/following',label:'Following',icon:UsersRound},{to:'/chat',label:'Messages',icon:MessageCircle}].map(({to,label,icon:Icon})=><NavLink end={to==='/'} key={to} to={to} aria-label={label} title={label} className={({isActive})=>isActive?'selected':''}><Icon size={19} strokeWidth={1.6}/><span>{label}</span></NavLink>)}</nav><div className='r-sidebar-project-heading'><span>Your projects</span><Link to='/studio?new=1' aria-label='New project'><Plus size={17}/></Link></div><div className='r-sidebar-projects'>{loading?<div className='r-side-skeleton'/>:data.slice(0,8).map(p=><NavLink key={p._id} to={`/projects/${p._id}`} aria-label={p.title} title={p.title}><Artwork src={media(p.coverUrl)}/><span><strong>{p.title}</strong><small>V{p.versions.length} · {stageLabel(p.stage)}</small></span></NavLink>)}{!loading&&!data.length&&<div className='r-sidebar-empty'><p>{authenticated?'A new song starts here.':'A home for your unfinished songs.'}</p><Link to={authenticated?'/studio?new=1':'/login'}>{authenticated?'Start a project':'Sign in to your studio'}<ArrowUpRight size={12}/></Link></div>}</div><div className='r-sidebar-footer'><span>Made, then remade.</span><Link to='/browse/latest-albums'>Browse the library<ArrowUpRight size={11}/></Link></div></aside>;
+}

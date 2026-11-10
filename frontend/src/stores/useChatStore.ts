@@ -1,6 +1,7 @@
 import { axiosInstance } from "@/lib/axios";
 import type { Message, User } from "@/types";
 import { create } from "zustand";
+import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
 type ActivityUpdate = {
@@ -23,7 +24,7 @@ interface ChatStore {
 	fetchUsers: () => Promise<void>;
 	initSocket: (userId: string) => void;
 	disconnectSocket: () => void;
-	sendMessage: (receiverId: string, senderId: string, content: string) => void;
+	sendMessage: (receiverId: string, senderId: string, content: string) => Promise<boolean>;
 	fetchMessages: (userId: string) => Promise<void>;
 	setSelectedUser: (user: User | null) => void;
 }
@@ -64,21 +65,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 				userMap.set(user.authUserId, user);
 			});
 			const uniqueUsers = [...userMap.values()];
-			set({ users: uniqueUsers });
+			set((state) => ({ users: uniqueUsers,
+                selectedUser: uniqueUsers.find(u => u.authUserId === state.selectedUser?.authUserId) ?? null,
+                messages: uniqueUsers.some(u => u.authUserId === state.selectedUser?.authUserId) ? state.messages : [],
+            }));
 		} catch (error: any) {
-			set({ error: error.response.data.message });
+			set({ error: error.response?.data?.message ?? "Unable to load chat" });
 		} finally {
 			set({ isLoading: false });
 		}
 	},
 
-	initSocket: (userId) => {
-		if (!get().isConnected) {
-			socket.removeAllListeners();
-			socket.auth = { userId };
+	initSocket: () => {
+		if (!socket.active) {
+
 			socket.connect();
 
-			socket.emit("user_connected", userId);
+			socket.on("connect", () => set({ isConnected: true }));
+            socket.on("disconnect", () => set({ isConnected: false }));
+            socket.on("connect_error", () => set({ isConnected: false, error: "Unable to connect to chat" }));
+            socket.on("friends_changed", () => { void get().fetchUsers(); });
 
 			socket.on("users_online", (users: string[]) => {
 				set({ onlineUsers: new Set(users) });
@@ -107,7 +113,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 					const activeUserId = state.selectedUser?.authUserId;
 					const otherUserId = message.senderId;
 					const cachedMessages = otherUserId ? state.messageCache[otherUserId] ?? [] : [];
-					const updatedMessages = [...cachedMessages, message];
+					const updatedMessages = [...cachedMessages.filter(m => m._id !== message._id), message];
 
 					return {
 						messageCache: otherUserId
@@ -123,7 +129,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 					const activeUserId = state.selectedUser?.authUserId;
 					const otherUserId = message.receiverId;
 					const cachedMessages = otherUserId ? state.messageCache[otherUserId] ?? [] : [];
-					const updatedMessages = [...cachedMessages, message];
+					const updatedMessages = [...cachedMessages.filter(m => m._id !== message._id), message];
 
 					return {
 						messageCache: otherUserId
@@ -142,16 +148,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 				});
 			});
 
-			set({ isConnected: true });
 		}
 	},
 
 	disconnectSocket: () => {
-		if (get().isConnected) {
+		{
 			socket.disconnect();
 			socket.removeAllListeners();
 			set({
 				isConnected: false,
+                users: [], selectedUser: null, error: null,
 				onlineUsers: new Set(),
 				userActivities: new Map(),
 				messages: [],
@@ -160,12 +166,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 		}
 	},
 
-	sendMessage: async (receiverId, senderId, content) => {
-		const socket = get().socket;
-		if (!socket) return;
-
-		socket.emit("send_message", { receiverId, senderId, content });
-	},
+	sendMessage: async (receiverId, _senderId, content) => {
+        if (!socket.connected) { toast.error("Chat is disconnected. Please try again."); return false; }
+        return new Promise<boolean>((resolve) => {
+            socket.timeout(10000).emit("send_message", { receiverId, content }, (err: Error | null, result: { error?: string }) => {
+                if (err || result?.error) { toast.error(result?.error || "Message could not be sent"); resolve(false); }
+                else resolve(true);
+            });
+        });
+    },
 
 	fetchMessages: async (userId: string) => {
 		const cachedMessages = get().messageCache[userId] ?? [];
@@ -173,14 +182,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 		try {
 			const response = await axiosInstance.get(`/users/messages/${userId}`);
 			set((state) => ({
-				messages: response.data,
+				messages: state.selectedUser?.authUserId === userId ? [...new Map([...response.data, ...(state.messageCache[userId] ?? [])].map((m: Message) => [m._id, m])).values()] : state.messages,
 				messageCache: {
 					...state.messageCache,
-					[userId]: response.data,
+					[userId]: [...new Map([...response.data, ...(state.messageCache[userId] ?? [])].map((m: Message) => [m._id, m])).values()],
 				},
 			}));
 		} catch (error: any) {
-			set({ error: error.response.data.message });
+			set({ error: error.response?.data?.message ?? "Unable to load chat" });
 		} finally {
 			set({ isLoading: false });
 		}

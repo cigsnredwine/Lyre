@@ -8,6 +8,7 @@ import fs from "fs";
 import { toNodeHandler } from "better-auth/node";
 
 import { connectDB } from "./lib/db.js";
+import projectRoutes from "./routes/project.route.js";
 import userRoutes from "./routes/user.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import uploadRoutes from "./routes/upload.route.js";
@@ -18,6 +19,7 @@ import statsRoutes from "./routes/stats.route.js";
 import { createServer } from "http";
 import { initializeSocket } from "./lib/socket.js";
 import { auth } from "./lib/auth.js";
+import { randomUUID } from "node:crypto";
 
 
 dotenv.config();
@@ -62,6 +64,28 @@ app.use(fileUpload({
     }
 }));
 
+app.use((req, res, next) => {
+    const requestId = randomUUID();
+    const started = process.hrtime.bigint();
+
+    res.setHeader("X-Request-ID", requestId);
+
+    res.on("finish", () => {
+        console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: "http_request",
+            request_id: requestId,
+            method: req.method,
+            status: res.statusCode,
+            duration_ms: Number(
+                process.hrtime.bigint() - started
+            ) / 1e6
+        }));
+    });
+
+    next();
+});
+
 // cron jobs
 // delete temp files after 1 hour
 const tempDir = path.join(process.cwd(), "tmp");
@@ -74,13 +98,14 @@ cron.schedule("0 * * * *", () => {
                 return;
             }
             for (const file of files) {
-                fs.unlink(path.join(tempDir,file), err => {});
+                fs.unlink(path.join(tempDir, file), err => { });
             }
         });
     }
 })
 
 
+app.use("/api/projects", projectRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/app-auth", authRoutes);
 app.use("/api/admin", adminRoutes);
@@ -90,7 +115,7 @@ app.use("/api/albums", albumRoutes);
 app.use("/api/album", albumRoutes);
 app.use("/api/stats", statsRoutes);
 
-if(process.env.NODE_ENV === "production"){
+if (process.env.NODE_ENV === "production") {
     app.use(express.static(path.join(__dirname, "../frontend/dist")));
     app.get("/{*splat}", (req, res) => {
         res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
@@ -99,7 +124,7 @@ if(process.env.NODE_ENV === "production"){
 
 // error handler
 app.use((err, req, res, next) => {
-    res.status(500).json({message: process.env.NODE_ENV === "production" ? "Internal server error" : err.message});
+    res.status(500).json({ message: process.env.NODE_ENV === "production" ? "Internal server error" : err.message });
 })
 httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -1,61 +1,24 @@
-import { usePlayerStore } from "@/stores/usePlayerStore";
-import { useEffect, useRef } from "react";
-
-
-const AudioPlayer = () => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const prevSongRef = useRef<string | null> (null);
-    
-    const {currentSong, isPlaying, playNext} = usePlayerStore();
-
-    // handle play/pause
-    useEffect(() => {
-        if(isPlaying) audioRef.current?.play();
-        else audioRef.current?.pause();
-    },[isPlaying]);
-
-    // handle song ends
-    useEffect(() => {
-        const audio = audioRef.current;
-
-        const handleEnded = () => {
-            const { repeatMode } = usePlayerStore.getState();
-
-            if(repeatMode === "one" && audio) {
-                audio.currentTime = 0;
-                void audio.play();
-                return;
-            }
-
-            playNext();
-        }
-
-        audio?.addEventListener("ended", handleEnded);
-
-        return () => audio?.removeEventListener("ended", handleEnded);
-    },[playNext]);
-
-    // handle song change
-    useEffect(() => {
-        if(!audioRef.current || !currentSong) return;
-
-        const audio = audioRef.current;
-        // check if this is a new song
-        const isSongChange = prevSongRef.current !== currentSong?.audioUrl;
-        if(isSongChange) {
-            audio.src = currentSong?.audioUrl;
-            //reset the playback position
-            audio.currentTime = 0;
-
-            prevSongRef.current = currentSong?.audioUrl;
-            
-            // play the new song
-            if(isPlaying) audio.play();
-
-        }
-    },[isPlaying, currentSong]);
-
-    return <audio ref={audioRef} />
+import { usePlayerStore } from '@/stores/usePlayerStore';
+import { useTransportStore } from '@/stores/useTransportStore';
+import { useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
+export default function AudioPlayer() {
+ const ref = useRef<HTMLAudioElement>(null);
+ const source = usePlayerStore(s => s.currentSong?.audioUrl);
+ const playing = usePlayerStore(s => s.isPlaying);
+ const volume = useTransportStore(s => s.volume);
+ useEffect(() => {
+  const audio = ref.current; if (!audio) return;
+  let active = true;
+  if (!source) { audio.pause(); return; }
+  if (audio.getAttribute('src') !== source) { audio.src = source; useTransportStore.setState({time:0,duration:0}); }
+  if (playing) audio.play().catch(error => { if (active && error.name !== 'AbortError') { usePlayerStore.setState({isPlaying:false}); if (error.name !== 'NotAllowedError') toast.error('This audio could not be played. Try another version.'); } }); else audio.pause();
+  return () => { active = false; };
+ }, [source, playing]);
+ useEffect(() => { if(ref.current) ref.current.volume = volume; }, [volume]);
+ return <audio id='lyre-audio' ref={ref} crossOrigin='use-credentials' preload='metadata'
+  onTimeUpdate={e => useTransportStore.setState({time:e.currentTarget.currentTime})}
+  onLoadedMetadata={e => useTransportStore.setState({duration:Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0})}
+  onPause={event => { const audio=event.currentTarget; if(!audio.ended && audio.readyState>=2 && !audio.seeking) usePlayerStore.setState({isPlaying:false}); }}
+  onEnded={() => { const state=usePlayerStore.getState(); if(state.repeatMode === 'one' && ref.current){ref.current.currentTime=0;void ref.current.play().catch(()=>usePlayerStore.setState({isPlaying:false}));} else state.playNext(); }}/ >;
 }
-
-export default AudioPlayer;

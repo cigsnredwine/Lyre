@@ -1,3 +1,4 @@
+import { formatDuration } from "@/lib/utils";
 import { useParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { useMusicStore } from "@/stores/useMusicStore"
@@ -7,11 +8,7 @@ import { Clock, Pause, Play } from "lucide-react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 
 
-export const formatDuration = (duration: number) => {
-    const minutes = Math.floor(duration / 60);
-    const seconds = Math.floor(duration % 60);
-    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`
-}
+
 
 const fallbackGradientStyle: React.CSSProperties = {
     backgroundImage: "linear-gradient(to bottom, rgb(55 147 166 / 0.82), rgb(24 24 27 / 0.82) 52%, rgb(24 24 27) 100%)",

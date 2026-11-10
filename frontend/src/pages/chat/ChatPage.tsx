@@ -1,105 +1,17 @@
-import Topbar from "@/components/ui/Topbar";
-import { useChatStore } from "@/stores/useChatStore";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useEffect } from "react";
-import UsersList from "./components/UsersList";
-import ChatHeader from "./components/ChatHeader";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import MessageInput from "./components/MessageInput";
-import LyreLogo from "@/components/ui/LyreLogo";
-
-const formatTime = (date: string) => {
-	return new Date(date).toLocaleTimeString("en-US", {
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: true,
-	});
-};
-
-const ChatPage = () => {
-	const { currentUser, sessionUser, isAuthenticated } = useAuthStore();
-	const { messages, selectedUser, fetchUsers, fetchMessages } = useChatStore();
-
-	useEffect(() => {
-		if (isAuthenticated) fetchUsers();
-	}, [fetchUsers, isAuthenticated]);
-
-	useEffect(() => {
-		if (selectedUser) fetchMessages(selectedUser.authUserId);
-	}, [selectedUser, fetchMessages]);
-
-	return (
-		<main className='h-full overflow-hidden rounded-xl border border-white/8 bg-black/30 backdrop-blur-[6px] shadow-[0_14px_36px_rgba(0,0,0,0.12)]'>
-			<Topbar />
-
-			<div className='grid lg:grid-cols-[300px_1fr] grid-cols-[80px_1fr] h-[calc(100vh-180px)]'>
-				<UsersList />
-
-				{/* chat message */}
-				<div className='flex flex-col h-full'>
-					{selectedUser ? (
-						<>
-							<ChatHeader />
-
-							{/* Messages */}
-							<ScrollArea className='h-[calc(100vh-340px)]'>
-								<div className='p-4 space-y-4'>
-									{messages.map((message) => (
-										<div
-											key={message._id}
-											className={`flex items-start gap-3 ${
-												message.senderId === currentUser?.authUserId ? "flex-row-reverse" : ""
-											}`}
-										>
-											<Avatar className='size-8'>
-												<AvatarImage
-													src={
-														message.senderId === currentUser?.authUserId
-															? currentUser.imageUrl || sessionUser?.image || ""
-															: selectedUser.imageUrl
-													}
-												/>
-												<AvatarFallback>
-													{message.senderId === currentUser?.authUserId
-														? currentUser?.fullName?.[0] || sessionUser?.name?.[0] || "Y"
-														: selectedUser.fullName[0]}
-												</AvatarFallback>
-											</Avatar>
-
-											<div
-												className={`rounded-lg p-3 max-w-[70%]
-													${message.senderId === currentUser?.authUserId ? "bg-primary text-primary-foreground" : "bg-zinc-800"}
-												`}
-											>
-												<p className='text-sm'>{message.content}</p>
-												<span className='text-xs text-zinc-300 mt-1 block'>
-													{formatTime(message.createdAt)}
-												</span>
-											</div>
-										</div>
-									))}
-								</div>
-							</ScrollArea>
-
-							<MessageInput />
-						</>
-					) : (
-						<NoConversationPlaceholder />
-					)}
-				</div>
-			</div>
-		</main>
-	);
-};
-export default ChatPage;
-
-const NoConversationPlaceholder = () => (
-	<div className='flex flex-col items-center justify-center h-full space-y-6'>
-		<LyreLogo markClassName='size-16 text-[3.5rem]' />
-		<div className='text-center'>
-			<h3 className='text-zinc-300 text-lg font-medium mb-1'>No conversation selected</h3>
-			<p className='text-zinc-500 text-sm'>Choose a friend to start chatting</p>
-		</div>
-	</div>
-);
+import { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, MessageCircle } from 'lucide-react';
+import { useChatStore } from '@/stores/useChatStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import UsersList from './components/UsersList';
+import MessageInput from './components/MessageInput';
+import { EmptyState } from '@/components/redesign/ProjectComponents';
+function sharedProject(content:string){try{const url=new URL(content);return url.origin===window.location.origin&&/^\/projects\/[a-f\d]{24}$/i.test(url.pathname)?url.pathname+url.search:null;}catch{return null;}}
+export default function ChatPage(){
+ const {currentUser,isAuthenticated}=useAuthStore(),{messages,selectedUser,fetchMessages,onlineUsers,error,isConnected}=useChatStore();
+ const end=useRef<HTMLDivElement>(null),selectedId=selectedUser?.authUserId;
+ useEffect(()=>{if(selectedId)void fetchMessages(selectedId);},[selectedId,fetchMessages]);
+ useEffect(()=>{end.current?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});},[messages.length,selectedUser?.authUserId]);
+ if(!isAuthenticated)return <main><header className='r-page-heading'><h1>Messages</h1></header><EmptyState title='A conversation starts with a friend' description='Sign in to add friends, share projects, and chat about what you’re making.'><Link to='/login?redirect=/chat' className='r-button primary'>Sign in</Link></EmptyState></main>;
+ return <main className='r-chat-page'><header className='r-page-heading'><h1>Messages</h1></header><div className='r-chat-layout'><UsersList/><section className='r-conversation'>{selectedUser?<><header className='r-conversation-header'><span className='r-friend-avatar'>{selectedUser.imageUrl?<img src={selectedUser.imageUrl} alt=''/>:<span>{selectedUser.fullName[0]}</span>}</span><div><h2>{selectedUser.fullName}</h2><span><i className={onlineUsers.has(selectedUser.authUserId)?'online':''}/>{onlineUsers.has(selectedUser.authUserId)?'Online':'Offline'}</span></div><span className='r-connection'>{isConnected?'Private conversation':'Reconnecting…'}</span></header><div className='r-messages' role='log' aria-label={`Conversation with ${selectedUser.fullName}`} aria-live='polite'>{!messages.length&&<div className='r-conversation-start'><MessageCircle size={23} strokeWidth={1.3}/><p>Start the conversation.</p><span>Share a song, an idea, or a quick hello.</span></div>}{messages.map(message=>{const own=message.senderId===currentUser?.authUserId,link=sharedProject(message.content);return <article key={message._id} className={`r-message ${own?'own':''}`}><span className='r-person'>{own?currentUser?.fullName[0]:selectedUser.fullName[0]}</span><div>{link?<Link to={link} className='r-shared-project'><span>SONG PROJECT</span><strong>Open shared project<ArrowUpRight size={15}/></strong><small>Access depends on the artist’s sharing settings.</small></Link>:<p>{message.content}</p>}<time>{new Date(message.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</time></div></article>;})}<div ref={end}/></div>{error&&<p className='r-error' role='status'>{error}</p>}<MessageInput key={selectedUser.authUserId}/></>:<EmptyState title='No conversation selected' description='Choose a friend to start chatting.'/ >}</section></div></main>;
+}

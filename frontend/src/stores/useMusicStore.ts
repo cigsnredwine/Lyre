@@ -8,6 +8,7 @@ interface MusicStore {
     songs: Song[];
     albums: Album[];
     isLoading: boolean;
+    pendingRequests: number;
     error: string | null;
     currentAlbum: Album | null;
     recentlyUpdatedSongs: Song[];
@@ -32,6 +33,7 @@ export const useMusicStore = create<MusicStore>((set) => ({
     albums: [],
     songs: [],
     isLoading: false,
+    pendingRequests: 0,
     error: null,
     currentAlbum: null,
     recentlyUpdatedSongs: [],
@@ -45,133 +47,114 @@ export const useMusicStore = create<MusicStore>((set) => ({
     },
 
     fetchSongs: async () =>{
-        set({
-            isLoading: true,
-            error: null
-        })
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }))
         try {
             const response = await axiosInstance.get("/songs");
             set({songs: response.data})
         } catch (error: any) {
-            set({error: error.response.data.message});         
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally {
-            set({ isLoading: false});
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchUploadedSongs: async () => {
-        set({
-            isLoading: true,
-            error: null,
-        });
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
         try {
             const response = await axiosInstance.get("/upload/songs");
             set({ songs: response.data });
         } catch (error: any) {
             set({ error: error.response?.data?.message ?? "Failed to fetch your uploaded songs" });
         } finally {
-            set({ isLoading: false });
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchUploadedAlbums: async () => {
-        set({
-            isLoading: true,
-            error: null,
-        });
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
         try {
             const response = await axiosInstance.get("/upload/albums");
             set({ albums: response.data });
         } catch (error: any) {
             set({ error: error.response?.data?.message ?? "Failed to fetch your uploaded albums" });
         } finally {
-            set({ isLoading: false });
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
     fetchStats: async () => {
-        set({
-            isLoading: true,
-            error: null
-        })
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }))
         try {
             const response = await axiosInstance.get("/stats");
             set({stats: response.data})
         } catch (error: any) {
-            set({error: error.response.data.message});         
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally {
-            set({ isLoading: false});
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchAlbums: async () => {
-        set({
-            isLoading: true,
-            error: null
-        })
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }))
         try {
             const response = await axiosInstance.get("/albums");
             set({albums: response.data})
         } catch (error: any) {
-            set({error: error.response.data.message});         
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally {
-            set({ isLoading: false});
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchAlbumById: async (id) => {
-        set({
-            isLoading: true,
-            error: null,
-            currentAlbum: null,
-        })
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null, currentAlbum: null }))
         try {
             const response = await axiosInstance.get(`/albums/${id}`);
             set({ currentAlbum: response.data });
         } catch (error: any) {
-            set({error: error.response.data.message});         
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally {
-            set({ isLoading: false});
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchNewUploadSongs: async () => {
-        set({ isLoading: true, error:null });
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
         try {
             const response = await axiosInstance.get("/songs/new-uploads");
             set({ newUploadSongs: response.data });
         } catch (error: any) {
-            set({error: error.response.data.message});
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally {
-            set({ isLoading: false });
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
-    
+
     fetchRecentlyUpdatedSongs: async () => {
-        set({ isLoading: true, error:null });
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
         try {
             const response = await axiosInstance.get("/songs/recently-updated");
             set({ recentlyUpdatedSongs: response.data });
         } catch (error:any) {
-            set({error: error.response.data.message});
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally{
-            set({ isLoading: false });
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     fetchTrendingSongs: async () => {
-        set({ isLoading:true, error:null});
+        set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
         try {
             const response = await axiosInstance.get("/songs/trending");
             set({ trendingSongs: response.data });
         } catch (error:any) {
-            set({error: error.response.data.message});
+            set({error: error.response?.data?.message ?? "Unable to load music. Please try again."});
         } finally{
-            set({ isLoading: false });
+            set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
         }
     },
 
     deleteSong: async (id) => {
-		set({ isLoading: true, error: null });
+		set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
 		try {
 			await axiosInstance.delete(`/admin/songs/${id}`);
 
@@ -183,12 +166,12 @@ export const useMusicStore = create<MusicStore>((set) => ({
 			console.log("Error in deleteSong", error);
 			toast.error("Error deleting song");
 		} finally {
-			set({ isLoading: false });
+			set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
 		}
 	},
 
 	deleteAlbum: async (id) => {
-		set({ isLoading: true, error: null });
+		set(state => ({ pendingRequests: state.pendingRequests + 1, isLoading: true, error: null }));
 		try {
 			await axiosInstance.delete(`/admin/albums/${id}`);
 			set((state) => ({
@@ -201,7 +184,7 @@ export const useMusicStore = create<MusicStore>((set) => ({
 		} catch (error: any) {
 			toast.error("Failed to delete album: " + error.message);
 		} finally {
-			set({ isLoading: false });
+			set(state => ({ pendingRequests: Math.max(0, state.pendingRequests - 1), isLoading: state.pendingRequests > 1 }));
 		}
     },
 
