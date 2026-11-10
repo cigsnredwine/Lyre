@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 import { Project } from '../models/project.model.js';
+import { ProjectCover } from '../models/project-cover.model.js';
 import { studioDemoAsset } from '../lib/studio-demo-assets.js';
 const router = Router();
 const storage = path.resolve(process.env.PROJECT_STORAGE_DIR || 'project-storage');
@@ -64,7 +65,9 @@ const view = (p, req, summary = false) => {
         const { file, sourceUrl, ...rest } = v;
         return { ...rest, audioUrl: `/api/projects/${p.id}/media/${v._id}` };
     });
-    value.coverUrl = p.coverFile ? `/api/projects/${p.id}/cover` : p.coverUrl;
+    value.coverUrl = p.coverFile
+        ? `/api/projects/${p.id}/cover?v=${createHash('sha256').update(p.coverFile).digest('hex').slice(0, 16)}`
+        : p.coverUrl;
     delete value.coverFile;
     value.posts = value.posts.map(post => ({ ...post, imageUrl: post.image ? `/api/projects/${p.id}/images/${post._id}` : null, image: undefined }));
     const visible = new Set(value.versions.map(v => String(v._id)));
@@ -88,6 +91,19 @@ async function saveFile(file, kind) {
     const name = `${randomUUID()}${ext}`;
     await file.mv(path.join(storage, name));
     return name;
+}
+const coverReference = 'db-cover:';
+async function createCover(file) {
+    if (Array.isArray(file) || !file.size || file.size > 8 * 1024 * 1024)
+        throw Object.assign(Error('Choose one cover image under 8 MB'), { status: 400 });
+    const bytes = file.tempFilePath ? await fs.readFile(file.tempFilePath) : file.data;
+    if (file.tempFilePath) await fs.unlink(file.tempFilePath);
+    let contentType;
+    if (bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) contentType = 'image/jpeg';
+    if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) contentType = 'image/png';
+    if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') contentType = 'image/webp';
+    if (!contentType) throw Object.assign(Error('Choose a JPEG, PNG, or WebP image'), { status: 400 });
+    return ProjectCover.create({ contentType, bytes });
 }
 router.get('/', wrap(async (req, res) => {
     const id = req.projectUser?.id;
@@ -122,32 +138,59 @@ router.post('/', signedIn, wrap(async (req, res) => {
 router.get('/:id', load, wrap(async (req, res) => res.json(view(req.project, req))));
 router.patch('/:id', signedIn, load, requireOwner, wrap(async (req, res) => {
     const p = req.project;
-    if (req.body.title !== undefined) {
-        const title = text(req.body.title, 120);
+    const body = req.body ?? {};
+    if (body.title !== undefined) {
+        const title = text(body.title, 120);
         if (!title)
             return res.status(400).json({ message: 'Title is required' });
         p.title = title;
     }
-    if (req.body.description !== undefined)
-        p.description = text(req.body.description, 3000);
-    if (req.body.visibility !== undefined) {
-        if (!['private', 'invited', 'unlisted', 'public'].includes(req.body.visibility))
+    if (body.artist !== undefined) {
+        const artist = text(body.artist, 120);
+        if (!artist) return res.status(400).json({ message: 'Artist name is required' });
+        p.artist = artist;
+    }
+    if (body.description !== undefined)
+        p.description = text(body.description, 3000);
+    if (body.visibility !== undefined) {
+        if (!['private', 'invited', 'unlisted', 'public'].includes(body.visibility))
             return res.status(400).json({ message: 'Invalid visibility' });
-        p.visibility = req.body.visibility;
+        p.visibility = body.visibility;
     }
-    if (req.body.stage !== undefined) {
-        if (!['idea', 'demo', 'in-progress', 'released'].includes(req.body.stage))
+    if (body.stage !== undefined) {
+        if (!['idea', 'demo', 'in-progress', 'released'].includes(body.stage))
             return res.status(400).json({ message: 'Invalid stage' });
-        p.stage = req.body.stage;
+        p.stage = body.stage;
     }
-    if (req.body.invitedEmails !== undefined) {
-        if (!Array.isArray(req.body.invitedEmails) || req.body.invitedEmails.length > 30 || req.body.invitedEmails.some(e => typeof e !== 'string' || !/^\S+@\S+\.\S+$/.test(e)))
+    if (body.invitedEmails !== undefined) {
+        if (!Array.isArray(body.invitedEmails) || body.invitedEmails.length > 30 || body.invitedEmails.some(e => typeof e !== 'string' || !/^\S+@\S+\.\S+$/.test(e)))
             return res.status(400).json({ message: 'Enter valid email addresses (up to 30)' });
-        p.invitedEmails = [...new Set(req.body.invitedEmails.map(e => e.trim().toLowerCase()))];
+        p.invitedEmails = [...new Set(body.invitedEmails.map(e => e.trim().toLowerCase()))];
     }
-    if (req.body.rotateLink)
+    if (body.rotateLink)
         p.shareToken = randomBytes(24).toString('hex');
-    await p.save();
+    const previousCover = p.coverFile;
+    const upload = req.files?.cover;
+    const removeCover = body.removeCover === true || body.removeCover === 'true';
+    if (upload && removeCover) return res.status(400).json({ message: 'Choose whether to replace or remove the cover' });
+    const cover = upload ? await createCover(upload) : null;
+    if (cover || removeCover) {
+        p.$where = { coverFile: previousCover ?? null };
+        p.coverFile = cover ? `${coverReference}${cover.id}` : undefined;
+        p.coverUrl = undefined;
+    }
+    try {
+        await p.save();
+    } catch (error) {
+        if (error.name === 'DocumentNotFoundError') {
+            if (cover) await ProjectCover.deleteOne({ _id: cover.id });
+            return res.status(409).json({ message: 'The cover was changed elsewhere. Reload the project and try again.' });
+        }
+        throw error;
+    }
+    if ((cover || removeCover) && previousCover?.startsWith(coverReference)) {
+        await ProjectCover.deleteOne({ _id: previousCover.slice(coverReference.length) }).catch(() => {});
+    }
     res.json(view(p, req));
 }));
 router.post('/:id/versions', signedIn, load, requireOwner, wrap(async (req, res) => {
@@ -234,6 +277,11 @@ router.get('/:id/media/:versionId', load, wrap(async (req, res) => {
 router.get('/:id/cover', load, wrap(async (req, res) => {
     const { coverFile } = req.project;
     if (!coverFile) return res.status(404).end();
+    if (coverFile.startsWith(coverReference)) {
+        const cover = await ProjectCover.findById(coverFile.slice(coverReference.length));
+        if (!cover) return res.status(404).end();
+        return res.set('X-Content-Type-Options', 'nosniff').type(cover.contentType).send(cover.bytes);
+    }
     const bundled = studioDemoAsset(coverFile, 'cover');
     if (bundled === null) return res.status(404).end();
     res.sendFile(bundled ?? path.join(storage, path.basename(coverFile)));

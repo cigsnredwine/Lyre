@@ -32,3 +32,11 @@ body{background:#111214;background-image:none;-webkit-font-smoothing:antialiased
 .r-app .studio .timeline-meta .r-edit-post{display:inline-flex;align-items:center;gap:5px;margin-left:auto;color:#96969e;font-size:11px;padding:4px 7px;border-radius:6px;flex-shrink:0;transition:color 160ms,background 160ms}.r-app .studio .timeline-meta .r-edit-post:hover{color:#eeede9;background:#ffffff08}.r-edit-actions{display:flex;justify-content:flex-end;gap:9px}.r-app .studio .timeline-meta{flex-wrap:wrap}
 
 .r-app .studio .song-actions .r-project-access{position:relative;display:inline-flex;align-items:center;gap:6px;padding:0 9px;color:#bdc9d7;cursor:pointer}.r-project-access select{appearance:none;border:0;background:transparent;color:inherit;min-height:32px;padding:0 19px 0 0;cursor:pointer;font:inherit}.r-project-access select option{background:#1c1c20;color:#eeede9}.r-project-access>svg:last-child{position:absolute;right:9px;pointer-events:none}.r-project-access:focus-within{outline:2px solid #8eafd1;outline-offset:2px}
+
+.r-cover-editor{display:flex;align-items:center;gap:14px;min-width:0}
+.r-cover-editor>.r-artwork{width:84px;height:84px;object-fit:cover;border-radius:10px;flex-shrink:0}
+.r-cover-editor>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.studio-form .r-cover-picker{position:relative;display:inline-flex;flex-direction:row;align-items:center;gap:7px;cursor:pointer}
+.r-cover-picker:focus-within{outline:2px solid #8eafd1;outline-offset:3px}
+.r-cover-picker input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.r-cover-editor small{flex-basis:100%;color:#96969e}

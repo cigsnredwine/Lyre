@@ -48,7 +48,7 @@ export const media = (url?: string, share?: string | null) => {
     if (!url.startsWith('/api/projects'))
         return url;
     const api = (axiosInstance.defaults.baseURL || '/api').replace(/\/api\/?$/, '');
-    return `${api}${url}${share ? `?share=${encodeURIComponent(share)}` : ''}`;
+    return `${api}${url}${share ? `${url.includes('?') ? '&' : '?'}share=${encodeURIComponent(share)}` : ''}`;
 };
 export async function duration(file: File) {
     const url = URL.createObjectURL(file);
