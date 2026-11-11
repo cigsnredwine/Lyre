@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <circle cx="32" cy="32" r="26" fill="#1D4ED8" fill-opacity="0.18"/>
+  <circle cx="32" cy="32" r="26" fill="#c51d3b" fill-opacity="0.18"/>
   <text
     x="32"
     y="43"
@@ -7,6 +7,6 @@
     font-family="Georgia, 'Times New Roman', serif"
     font-size="40"
     font-weight="700"
-    fill="#2563EB"
+    fill="#c51d3b"
   >♭</text>
 </svg>

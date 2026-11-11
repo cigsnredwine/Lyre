@@ -16,9 +16,9 @@ export default function AudioPlayer() {
   return () => { active = false; };
  }, [source, playing]);
  useEffect(() => { if(ref.current) ref.current.volume = volume; }, [volume]);
- return <audio id='lyre-audio' ref={ref} crossOrigin='use-credentials' preload='metadata'
+ return <audio id='lyre-audio' ref={ref} crossOrigin='use-credentials' preload='auto'
   onTimeUpdate={e => useTransportStore.setState({time:e.currentTarget.currentTime})}
   onLoadedMetadata={e => useTransportStore.setState({duration:Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:0})}
-  onPause={event => { const audio=event.currentTarget; if(!audio.ended && audio.readyState>=2 && !audio.seeking) usePlayerStore.setState({isPlaying:false}); }}
+  onPause={event => { const audio=event.currentTarget; if(audio.paused && !audio.ended && audio.readyState>=2 && !audio.seeking) usePlayerStore.setState({isPlaying:false}); }}
   onEnded={() => { const state=usePlayerStore.getState(); if(state.repeatMode === 'one' && ref.current){ref.current.currentTime=0;void ref.current.play().catch(()=>usePlayerStore.setState({isPlaying:false}));} else state.playNext(); }}/ >;
 }

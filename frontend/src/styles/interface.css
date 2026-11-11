@@ -20,7 +20,7 @@ button:disabled { cursor: not-allowed; }
 .route-stage { animation: interface-enter var(--motion-enter) var(--ease-interface) both; }
 .lyre-sidebar a[aria-current=page] { background: #ffffff07; color: #f4f4f5; box-shadow: inset 2px 0 0 color-mix(in oklab, var(--primary) 75%, transparent); }
 .lyre-sidebar a { transition: background-color var(--motion-fast), color var(--motion-fast); }
-.lyre-sidebar a[aria-current=page] svg { color: #a8bedd; }
+.lyre-sidebar a[aria-current=page] svg { color: #eb4563; }
 .profile-menu { transform-origin: top right; animation: menu-enter 180ms var(--ease-interface) both; }
 [data-slot=dialog-overlay] { background: #0007; }
 [data-slot=dialog-content] { box-shadow: 0 24px 90px #0007, 0 0 0 1px #ffffff06; }
@@ -44,7 +44,7 @@ button:disabled { cursor: not-allowed; }
 .mobile-navigation { display: flex; align-items: center; justify-content: space-around; gap: 5px; border-top: 1px solid #ffffff0d; background: #0a0a0ce8; padding: 7px 12px max(7px, env(safe-area-inset-bottom)); flex-shrink: 0; backdrop-filter: blur(16px); }
 .mobile-navigation a { display: flex; flex: 1; justify-content: center; align-items: center; flex-direction: column; gap: 4px; padding: 5px; color: #777782; font-size: 9px; border-radius: 3px; }
 .mobile-navigation a.active { color: #e4e4e7; background: #ffffff04; }
-.mobile-navigation a.active svg { color: #a8bedd; }
+.mobile-navigation a.active svg { color: #eb4563; }
 .album-track { transition: background-color var(--motion-fast); }
 .album-track:hover, .album-track:focus-visible { background: #ffffff06; }
 .studio .workspace, .studio .song-project { animation: interface-enter var(--motion-enter) var(--ease-interface) both; }
@@ -87,7 +87,7 @@ button:disabled { cursor: not-allowed; }
 .section-link:hover { color: #f4f4f5; text-decoration: underline; text-decoration-color: #ffffff45; }
 .album-hero>div { min-width: 0; }
 
-/* Glass shares Lyre's existing artwork, dark tones, and blue accent. */
+/* Glass shares Lyre's existing artwork, black surfaces, and crimson accent. */
 :root {
   --glass-fill: rgb(19 20 27 / 42%);
   --glass-border: rgb(255 255 255 / 10%);

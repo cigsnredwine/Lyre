@@ -9,7 +9,7 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 16px;
-    color: #a7b9cf;
+    color: #eb4563;
     font-size: 12px;
 }
 .artist-back:hover { color: #eef3f8; }
@@ -58,8 +58,8 @@
     font-size: 12px;
     transition: color 160ms, background 160ms, border-color 160ms;
 }
-.artist-play { background: #9db9d7; color: #141a23; border-color: transparent; }
-.artist-play:hover { background: #b9cee4; }
+.artist-play { background: #eb4563; color: #211112; border-color: transparent; }
+.artist-play:hover { background: #eb4563; }
 .artist-edit:hover { background: #ffffff0d; border-color: #ffffff28; }
 .artist-content { margin-top: 26px; }
 .artist-content.has-about { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: clamp(18px, 4vw, 40px); }
@@ -84,10 +84,10 @@
 .artist-upload-name strong { font-size: 14px; font-weight: 530; }
 .artist-upload-name strong, .artist-upload-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .artist-upload-name small, .artist-upload-row > small, .artist-empty { color: #a9aab4; font-size: 12px; }
-.artist-upload-row > .artist-stage { color: #b5c5d6; font-size: 10px; }
+.artist-upload-row > .artist-stage { color: #e3adb0; font-size: 10px; }
 .artist-empty { margin: 14px 0 0; }
 .artist-bio { max-width: 65ch; margin-top: 13px; color: #b5b7bf; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
-.artist-credits a:hover { color: #e5eff9; text-decoration: underline; text-underline-offset: 3px; }
+.artist-credits a:hover { color: #fbe8e9; text-decoration: underline; text-underline-offset: 3px; }
 .artist-editor-preview { display: block; width: 100%; max-height: 150px; object-fit: cover; border-radius: 8px; }
 .artist-demo-dialog { margin: auto; color: #eee; background: #1e2025; border: 1px solid #ffffff20; border-radius: 14px; width: min(92vw, 420px); padding: 20px; }
 .artist-demo-dialog::backdrop { background: #0009; }
