@@ -1,0 +1,103 @@
+.artist-profile {
+    max-width: 1080px;
+    min-width: 0;
+    margin: 0 auto;
+    padding-bottom: 28px;
+}
+.artist-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+    color: #a7b9cf;
+    font-size: 12px;
+}
+.artist-back:hover { color: #eef3f8; }
+.artist-hero {
+    overflow: hidden;
+    background: #1b1c20;
+    border: 1px solid #ffffff0d;
+    border-radius: 15px;
+}
+.artist-hero > img {
+    display: block;
+    width: 100%;
+    height: clamp(158px, 26vw, 300px);
+    object-fit: cover;
+    object-position: center 38%;
+}
+.artist-hero > img[hidden] { display: none; }
+.artist-intro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 13px 22px;
+    min-width: 0;
+    padding: clamp(17px, 2.5vw, 28px);
+}
+.artist-intro h1 {
+    margin: 0;
+    color: #eeede9;
+    font: 450 clamp(32px, 5vw, 57px)/1.12 'Lora Variable', Lora, Georgia, serif;
+    letter-spacing: -.035em;
+    overflow-wrap: anywhere;
+}
+.artist-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.artist-play, .artist-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 35px;
+    padding: 7px 12px;
+    border: 1px solid #ffffff14;
+    border-radius: 99px;
+    color: #e4e3e4;
+    background: #ffffff05;
+    font-size: 12px;
+    transition: color 160ms, background 160ms, border-color 160ms;
+}
+.artist-play { background: #9db9d7; color: #141a23; border-color: transparent; }
+.artist-play:hover { background: #b9cee4; }
+.artist-edit:hover { background: #ffffff0d; border-color: #ffffff28; }
+.artist-content { margin-top: 26px; }
+.artist-content.has-about { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: clamp(18px, 4vw, 40px); }
+.artist-section-heading { padding-bottom: 10px; border-bottom: 1px solid #ffffff10; }
+.artist-section-heading h2 { font-size: 17px; font-weight: 570; margin: 0; }
+.artist-upload-list { display: grid; }
+.artist-upload-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    min-height: 59px;
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid #ffffff0c;
+    text-align: left;
+    width: 100%;
+    transition: background 160ms;
+}
+.artist-upload-row:hover { background: #ffffff06; }
+.artist-upload-row .r-artwork, .artist-upload-row > img { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
+.artist-upload-name { min-width: 0; display: grid; gap: 1px; }
+.artist-upload-name strong { font-size: 14px; font-weight: 530; }
+.artist-upload-name strong, .artist-upload-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artist-upload-name small, .artist-upload-row > small, .artist-empty { color: #a9aab4; font-size: 12px; }
+.artist-upload-row > .artist-stage { color: #b5c5d6; font-size: 10px; }
+.artist-empty { margin: 14px 0 0; }
+.artist-bio { max-width: 65ch; margin-top: 13px; color: #b5b7bf; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artist-credits a:hover { color: #e5eff9; text-decoration: underline; text-underline-offset: 3px; }
+.artist-editor-preview { display: block; width: 100%; max-height: 150px; object-fit: cover; border-radius: 8px; }
+.artist-demo-dialog { margin: auto; color: #eee; background: #1e2025; border: 1px solid #ffffff20; border-radius: 14px; width: min(92vw, 420px); padding: 20px; }
+.artist-demo-dialog::backdrop { background: #0009; }
+.artist-demo-dialog form, .artist-demo-dialog label { display: grid; gap: 8px; }
+.artist-demo-dialog input, .artist-demo-dialog textarea { background: #252830; border: 1px solid #ffffff21; color: #eee; padding: 8px; border-radius: 5px; width: 100%; }
+@media (max-width: 640px) {
+    .artist-content.has-about { grid-template-columns: minmax(0, 1fr); gap: 23px; }
+    .artist-content { margin-top: 21px; }
+    .artist-upload-row { gap: 8px; padding-right: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .artist-play, .artist-edit, .artist-upload-row { transition: none; }
+}

@@ -1,255 +1,152 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import toast from "react-hot-toast";
-import { Camera, Loader2 } from "lucide-react";
-import Topbar from "@/components/ui/Topbar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { axiosInstance } from "@/lib/axios";
-import { authClient } from "@/lib/auth-client";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Pencil, Play, Settings2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { axiosInstance } from '@/lib/axios';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { usePlayerStore } from '@/stores/usePlayerStore';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import Artwork from '@/components/redesign/Artwork';
+import { EmptyState, ProjectSkeleton } from '@/components/redesign/ProjectComponents';
+import { projectSong, stageLabel } from '@/components/redesign/project-utils';
+import { media, stamp, type Project } from '@/pages/studio/project';
+import type { Album, Song } from '@/types';
+import './artist-profile.css';
+import '@/pages/studio/studio.css';
 
-const ProfilePage = () => {
-	const { currentUser, sessionUser, isAuthenticated, hasCheckedAdmin, checkAdminStatus, setAuthState } = useAuthStore();
-	const [name, setName] = useState("");
-	const [imageFile, setImageFile] = useState<File | null>(null);
-	const [previewUrl, setPreviewUrl] = useState("");
-	const [currentPassword, setCurrentPassword] = useState("");
-	const [newPassword, setNewPassword] = useState("");
-	const [confirmPassword, setConfirmPassword] = useState("");
-	const [isSavingProfile, setIsSavingProfile] = useState(false);
-	const [isSavingPassword, setIsSavingPassword] = useState(false);
-	const fileInputRef = useRef<HTMLInputElement>(null);
+type Artist = { id: string; name: string; bio: string; website: string; photoUrl: string; tracks: Song[]; albums: Pick<Album, '_id' | 'title' | 'artist' | 'imageUrl' | 'releaseYear'>[] };
 
-	useEffect(() => {
-		if (!hasCheckedAdmin) {
-			checkAdminStatus();
-		}
-	}, [checkAdminStatus, hasCheckedAdmin]);
+function artistPhoto(url: string) {
+    if (!url.startsWith('/api/artists/')) return url;
+    const base = (axiosInstance.defaults.baseURL || '/api').replace(/\/api\/?$/, '');
+    return `${base}${url}`;
+}
 
-	useEffect(() => {
-		if (currentUser) {
-			setName(currentUser.fullName);
-			setPreviewUrl(currentUser.imageUrl);
-		}
-	}, [currentUser]);
+export default function ProfilePage() {
+    const { artistId } = useParams();
+    const ownId = useAuthStore(state => state.currentUser?.authUserId);
+    const id = artistId || ownId;
+    const isOwner = Boolean(id && id === ownId);
+    const [result, setResult] = useState<{ id: string; artist?: Artist; projects: Project[]; error?: string }>();
+    const [editing, setEditing] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [image, setImage] = useState<{ file: File; url: string }>();
 
-	if (hasCheckedAdmin && !isAuthenticated) {
-		return <Navigate to="/login" replace />;
-	}
+    useEffect(() => {
+        if (!id) return;
+        const controller = new AbortController();
+        const config = { signal: controller.signal };
+        Promise.all([
+            axiosInstance.get<Artist>(`/artists/${encodeURIComponent(id)}`, config),
+            axiosInstance.get<Project[]>('/projects', { ...config, params: { scope: 'artist', artistId: id } }),
+        ]).then(([artist, projects]) => {
+            if (!controller.signal.aborted) setResult({ id, artist: artist.data, projects: projects.data });
+        }).catch(error => {
+            if (!controller.signal.aborted) setResult({ id, projects: [], error: error.response?.status === 404 ? 'Artist profile not found' : 'Couldn’t load this artist profile' });
+        });
+        return () => controller.abort();
+    }, [id, ownId]);
 
-	const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0] ?? null;
-		setImageFile(file);
+    useEffect(() => () => { if (image) URL.revokeObjectURL(image.url); }, [image]);
 
-		if (file) {
-			setPreviewUrl(URL.createObjectURL(file));
-		}
-	};
+    if (!id) return <Navigate to='/login?redirect=/profile' replace />;
+    if (result?.id !== id) return <ProjectSkeleton />;
+    if (!result.artist) return <EmptyState title={result.error || 'Artist profile not found'}><Link className='r-button' to='/'>Discover</Link></EmptyState>;
+    const { artist, projects } = result;
+    const photo = artistPhoto(artist.photoUrl);
+    const firstSong = projects.map(project => {
+        const version = project.versions.filter(v => v.isPublic).at(-1);
+        return version ? projectSong(project, version) : null;
+    }).find(Boolean) || artist.tracks[0];
 
-	const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		setIsSavingProfile(true);
+    function closeEditor() {
+        setEditing(false);
+        setImage(undefined);
+    }
 
-		try {
-			const formData = new FormData();
-			formData.append("name", name.trim());
+    async function save(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        if (image) data.set('photo', image.file);
+        setBusy(true);
+        try {
+            const { data: changes } = await axiosInstance.patch<Omit<Artist, 'tracks' | 'albums'>>('/artists/me', data);
+            setResult(previous => previous && previous.id === id && previous.artist
+                ? { ...previous, artist: { ...previous.artist, ...changes } } : previous);
+            closeEditor();
+            toast.success('Artist profile updated');
+        } catch (error) {
+            const message = axiosInstanceError(error);
+            toast.error(message);
+        } finally { setBusy(false); }
+    }
 
-			if (imageFile) {
-				formData.append("imageFile", imageFile);
-			}
+    return <main className='artist-profile'>
+        <Link className='artist-back' to='/'><ArrowLeft size={14} />Discover</Link>
+        <section className='artist-hero'>
+            {photo && <img key={photo} src={photo} alt='' onError={e => { e.currentTarget.hidden = true; }} />}
+            <div className='artist-intro'>
+                <h1>{artist.name}</h1>
+            {(firstSong || isOwner || artist.website) && <div className='artist-controls'>
+                {firstSong && <button className='artist-play' aria-label={`Play ${artist.name}`} onClick={() => usePlayerStore.getState().setCurrentSong(firstSong)}><Play size={13} fill='currentColor' />Listen</button>}
+                {isOwner && <>
+                    <button className='artist-edit' onClick={() => setEditing(true)}><Pencil size={13} />Edit profile</button>
+                    <Link className='artist-edit' to='/settings/account'><Settings2 size={13} />Account settings</Link>
+                </>}
+                {artist.website && <a className='artist-edit' href={artist.website} target='_blank' rel='noopener noreferrer'>Website<ArrowUpRight size={13} /></a>}
+            </div>}
+            </div>
+        </section>
+        <div className={`artist-content${artist.bio ? ' has-about' : ''}`}>
+            <section>
+                <div className='artist-section-heading'><h2>Uploads</h2></div>
+                <div className='artist-upload-list'>
+                    {projects.map(project => <Link className='artist-upload-row' key={project._id} to={`/projects/${project._id}`}>
+                        <Artwork src={media(project.coverUrl)} />
+                        <span className='artist-upload-name'><strong>{project.title}</strong><small>{project.artist}</small></span>
+                        <small className='artist-stage'>{stageLabel(project.stage)}</small>
+                    </Link>)}
+                    {artist.albums.map(album => <Link className='artist-upload-row' key={album._id} to={`/albums/${album._id}`}>
+                        <Artwork src={album.imageUrl} />
+                        <span className='artist-upload-name'><strong>{album.title}</strong><small>{album.artist}</small></span>
+                        <small className='artist-stage'>Album · {album.releaseYear}</small>
+                    </Link>)}
+                    {artist.tracks.map(track => <button className='artist-upload-row' key={track._id} aria-label={`Play ${track.title}`} onClick={() => usePlayerStore.getState().setCurrentSong(track)}>
+                        <Artwork src={track.imageUrl} />
+                        <span className='artist-upload-name'><strong>{track.title}</strong><small>{track.artist}</small></span>
+                        <small>{stamp(track.duration)}</small>
+                    </button>)}
+                </div>
+                {!projects.length && !artist.tracks.length && !artist.albums.length && <p className='artist-empty'>No public uploads yet.</p>}
+            </section>
+            {artist.bio && <section className='artist-secondary'>
+                <div className='artist-section-heading'><h2>About</h2></div>
+                <p className='artist-bio'>{artist.bio}</p>
+            </section>}
+        </div>
+        <Dialog open={editing && isOwner} onOpenChange={open => { if (!open && !busy) closeEditor(); }}>
+            <DialogContent className='studio-dialog sm:max-w-lg max-h-[90dvh] overflow-y-auto'>
+                <DialogTitle>Edit artist profile</DialogTitle>
+                {editing && isOwner && <form className='studio-form' onSubmit={save}>
+                    {(image || photo) && <img className='artist-editor-preview' src={image?.url || photo} alt='Artist header preview' />}
+                    <label>Header photo<input type='file' accept='.jpg,.jpeg,.png,.webp' onChange={event => {
+                        const file = event.target.files?.[0];
+                        setImage(file ? { file, url: URL.createObjectURL(file) } : undefined);
+                    }} /></label>
+                    <label>Artist name<input name='name' defaultValue={artist.name} maxLength={120} required /></label>
+                    <label>Bio<textarea name='bio' defaultValue={artist.bio} maxLength={1200} /></label>
+                    <label>Website<input name='website' type='url' defaultValue={artist.website} maxLength={500} placeholder='https://' /></label>
+                    <button className='s-button primary' disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
+                </form>}
+            </DialogContent>
+        </Dialog>
+    </main>;
+}
 
-			const response = await axiosInstance.patch("/app-auth/profile", formData, {
-				headers: {
-					"Content-Type": "multipart/form-data",
-				},
-			});
-
-			setAuthState({
-				user: response.data.user,
-				sessionUser: response.data.sessionUser,
-				isAdmin: response.data.isAdmin,
-			});
-			setImageFile(null);
-			toast.success("Profile updated");
-		} catch (error: any) {
-			toast.error(error.response?.data?.message ?? "Failed to update profile");
-		} finally {
-			setIsSavingProfile(false);
-		}
-	};
-
-	const handlePasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-
-		if (newPassword !== confirmPassword) {
-			toast.error("New passwords do not match");
-			return;
-		}
-
-		setIsSavingPassword(true);
-
-		try {
-			const response = await authClient.changePassword({
-				currentPassword,
-				newPassword,
-				revokeOtherSessions: false,
-			});
-
-			if (response.error) {
-				throw new Error(response.error.message || "Failed to change password");
-			}
-
-			setCurrentPassword("");
-			setNewPassword("");
-			setConfirmPassword("");
-			toast.success("Password changed");
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Failed to change password");
-		} finally {
-			setIsSavingPassword(false);
-		}
-	};
-
-	return (
-		<main className='account-page flex min-h-dvh flex-col overflow-hidden'>
-			<Topbar />
-
-			<div className='flex-1 overflow-y-auto'>
-				<div className='mx-auto max-w-4xl p-6 space-y-6'>
-					<div className='flex items-center justify-between gap-4'>
-						<div>
-							<h1 className='text-2xl font-medium tracking-tight text-white'>Your Profile</h1>
-							<p className='text-zinc-400 mt-1'>Update your display name, profile image, and password.</p>
-						</div>
-						<Link to='/' className='text-sm text-primary hover:underline'>
-							Back home
-						</Link>
-					</div>
-
-					<Card className='bg-zinc-900 border-zinc-800 text-white'>
-						<CardHeader>
-							<CardTitle>Profile Details</CardTitle>
-							<CardDescription>
-								This is what other users will see in chat and activity.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<form className='space-y-6' onSubmit={handleProfileSubmit}>
-								<div className='flex flex-col sm:flex-row gap-6 items-start'>
-									<div className='relative'>
-										<Avatar className='size-28 border border-zinc-700'>
-											<AvatarImage src={previewUrl || currentUser?.imageUrl} alt={currentUser?.fullName} />
-											<AvatarFallback>{currentUser?.fullName?.[0] ?? "U"}</AvatarFallback>
-										</Avatar>
-										<Button
-											type='button'
-											size='icon'
-											className='absolute bottom-0 right-0 rounded-full'
-											onClick={() => fileInputRef.current?.click()}
-										>
-											<Camera className='size-4' />
-										</Button>
-										<input
-											ref={fileInputRef}
-											type='file'
-											accept='image/*'
-											className='hidden'
-											onChange={handleFileSelect}
-										/>
-									</div>
-
-									<div className='flex-1 space-y-4 w-full'>
-										<div className='space-y-2'>
-											<label className='text-sm font-medium'>Display Name</label>
-											<Input
-												value={name}
-												onChange={(event) => setName(event.target.value)}
-												className='bg-zinc-800 border-zinc-700'
-												placeholder='Your display name'
-											/>
-										</div>
-
-										<div className='space-y-2'>
-											<label className='text-sm font-medium'>Email</label>
-											<Input
-												value={sessionUser?.email ?? ""}
-												readOnly
-												className='bg-zinc-800 border-zinc-700 text-zinc-400'
-											/>
-										</div>
-									</div>
-								</div>
-
-								<Button type='submit' disabled={isSavingProfile || !name.trim()}>
-									{isSavingProfile ? <Loader2 className='size-4 animate-spin' /> : "Save Profile"}
-								</Button>
-							</form>
-						</CardContent>
-					</Card>
-
-					<Card className='bg-zinc-900 border-zinc-800 text-white'>
-						<CardHeader>
-							<CardTitle>Change Password</CardTitle>
-							<CardDescription>
-								Update your password while keeping your current account and session.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<form className='space-y-4' onSubmit={handlePasswordSubmit}>
-								<div className='space-y-2'>
-									<label className='text-sm font-medium'>Current Password</label>
-									<Input
-										type='password'
-										value={currentPassword}
-										onChange={(event) => setCurrentPassword(event.target.value)}
-										className='bg-zinc-800 border-zinc-700'
-									/>
-								</div>
-
-								<div className='grid gap-4 sm:grid-cols-2'>
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>New Password</label>
-										<Input
-											type='password'
-											value={newPassword}
-											onChange={(event) => setNewPassword(event.target.value)}
-											className='bg-zinc-800 border-zinc-700'
-										/>
-									</div>
-
-									<div className='space-y-2'>
-										<label className='text-sm font-medium'>Confirm New Password</label>
-										<Input
-											type='password'
-											value={confirmPassword}
-											onChange={(event) => setConfirmPassword(event.target.value)}
-											className='bg-zinc-800 border-zinc-700'
-										/>
-									</div>
-								</div>
-
-								<Button
-									type='submit'
-									variant='outline'
-									disabled={
-										isSavingPassword ||
-										!currentPassword ||
-										!newPassword ||
-										!confirmPassword
-									}
-								>
-									{isSavingPassword ? <Loader2 className='size-4 animate-spin' /> : "Update Password"}
-								</Button>
-							</form>
-						</CardContent>
-					</Card>
-				</div>
-			</div>
-		</main>
-	);
-};
-
-export default ProfilePage;
+function axiosInstanceError(error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+        const response = error.response as { data?: { message?: string } } | undefined;
+        if (response?.data?.message) return response.data.message;
+    }
+    return 'Couldn’t save the artist profile';
+}

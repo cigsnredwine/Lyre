@@ -9,6 +9,9 @@ export default function ProjectSettingsForm({ project, busy, onSave }: {
     onSave: (form: FormData) => Promise<void>;
 }) {
     const [selection, setSelection] = useState<{ file: File; preview: string } | null>(null);
+    const [artist, setArtist] = useState(project.artist);
+    const [artistLinks, setArtistLinks] = useState<Record<string, string>>({});
+    const collaborators = [...new Set(artist.split(',').map(name => name.trim()).filter(Boolean).slice(1))];
     const [removeCover, setRemoveCover] = useState(false);
     const input = useRef<HTMLInputElement>(null);
 
@@ -22,6 +25,8 @@ export default function ProjectSettingsForm({ project, busy, onSave }: {
         const form = new FormData(event.currentTarget);
         if (selection) form.set('cover', selection.file);
         if (removeCover) form.set('removeCover', 'true');
+        const links = collaborators.filter(name => Object.hasOwn(artistLinks, name)).map(name => ({ name, email: artistLinks[name] }));
+        if (links.length) form.set('artistLinks', JSON.stringify(links));
         void onSave(form);
     }
 
@@ -52,7 +57,19 @@ export default function ProjectSettingsForm({ project, busy, onSave }: {
                 </div>
             </div>
             <label>Project title<input name="title" defaultValue={project.title} required maxLength={120} /></label>
-            <label>Artist name<input name="artist" defaultValue={project.artist} required maxLength={120} /></label>
+            <label>Artist names<input name="artist" value={artist} onChange={event => setArtist(event.target.value)} required maxLength={120} /></label>
+            {collaborators.length > 0 && <details>
+                <summary>Link credited artists</summary>
+                <p className='micro'>The first credit links to your profile. Link each additional credit using the artist’s Lyre account email.</p>
+                {collaborators.map(name => {
+                    const linked = project.artistCredits?.some(credit => credit.name === name && credit.accountId);
+                    return <label key={name}>{name}’s Lyre email
+                        <input type='email' placeholder={linked ? (artistLinks[name] === '' ? 'Will unlink on save' : 'Linked account') : 'artist@example.com'} value={artistLinks[name] ?? ''}
+                            onChange={event => setArtistLinks(previous => ({ ...previous, [name]: event.target.value }))} />
+                        {linked && <button type='button' className='text-link' onClick={() => setArtistLinks(previous => ({ ...previous, [name]: '' }))}>Unlink on save</button>}
+                    </label>;
+                })}
+            </details>}
             <label>Description<textarea name="description" defaultValue={project.description} maxLength={3000} /></label>
             <label>Stage<select name="stage" defaultValue={project.stage}>
                 <option value="idea">Idea</option>

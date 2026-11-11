@@ -6,6 +6,8 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 import { Project } from '../models/project.model.js';
 import { ProjectCover } from '../models/project-cover.model.js';
+import { createStoredImage } from '../lib/stored-image.js';
+import { User } from '../models/user.model.js';
 import { studioDemoAsset } from '../lib/studio-demo-assets.js';
 const router = Router();
 const storage = path.resolve(process.env.PROJECT_STORAGE_DIR || 'project-storage');
@@ -51,6 +53,11 @@ const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, m
 const view = (p, req, summary = false) => {
     const canEdit = owner(p, req), canListenPrivate = collaborator(p, req);
     const value = p.toObject();
+    const names = (p.artist || '').split(',').map(name => name.trim()).filter(Boolean);
+    value.artistCredits = names.map((name, index) => ({
+        name,
+        accountId: index === 0 ? p.ownerId : p.artistCredits.find(credit => credit.name === name)?.accountId,
+    }));
     value.isOwner = canEdit;
     value.isCollaborator = canListenPrivate;
     value.isFollowing = p.followers.includes(req.projectUser?.id);
@@ -93,21 +100,15 @@ async function saveFile(file, kind) {
     return name;
 }
 const coverReference = 'db-cover:';
-async function createCover(file) {
-    if (Array.isArray(file) || !file.size || file.size > 8 * 1024 * 1024)
-        throw Object.assign(Error('Choose one cover image under 8 MB'), { status: 400 });
-    const bytes = file.tempFilePath ? await fs.readFile(file.tempFilePath) : file.data;
-    if (file.tempFilePath) await fs.unlink(file.tempFilePath);
-    let contentType;
-    if (bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) contentType = 'image/jpeg';
-    if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) contentType = 'image/png';
-    if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') contentType = 'image/webp';
-    if (!contentType) throw Object.assign(Error('Choose a JPEG, PNG, or WebP image'), { status: 400 });
-    return ProjectCover.create({ contentType, bytes });
-}
 router.get('/', wrap(async (req, res) => {
     const id = req.projectUser?.id;
     let filter = { visibility: 'public' };
+    if (req.query.scope === 'artist') {
+        const artistId = req.query.artistId;
+        if (typeof artistId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(artistId))
+            return res.status(400).json({ message: 'Invalid artist account' });
+        filter = { visibility: 'public', ownerId: artistId };
+    }
     if (req.query.scope === 'mine') {
         if (!id)
             return res.status(401).json({ message: 'Sign in to open your studio' });
@@ -150,6 +151,25 @@ router.patch('/:id', signedIn, load, requireOwner, wrap(async (req, res) => {
         if (!artist) return res.status(400).json({ message: 'Artist name is required' });
         p.artist = artist;
     }
+    if (body.artistLinks !== undefined) {
+        let links;
+        try { links = typeof body.artistLinks === 'string' ? JSON.parse(body.artistLinks) : body.artistLinks; }
+        catch { return res.status(400).json({ message: 'Invalid artist links' }); }
+        const names = (p.artist || '').split(',').map(name => name.trim()).filter(Boolean).slice(1);
+        if (!Array.isArray(links) || links.length > 12 || links.some(link => !link || !names.includes(link.name) || typeof link.email !== 'string' || link.email.length > 254))
+            return res.status(400).json({ message: 'Invalid artist links' });
+        const credits = new Map(p.artistCredits.filter(credit => names.includes(credit.name)).map(credit => [credit.name, credit.accountId]));
+        for (const { name, email } of links) {
+            if (!email.trim()) { credits.delete(name); continue; }
+            const artist = await User.findOne({ email: email.trim().toLowerCase() }).select('authUserId');
+            if (!artist) return res.status(400).json({ message: `No Lyre profile found for ${name}.` });
+            credits.set(name, artist.authUserId);
+        }
+        p.artistCredits = [...credits].map(([name, accountId]) => ({ name, accountId }));
+    } else if (body.artist !== undefined) {
+        const names = p.artist.split(',').map(name => name.trim()).slice(1);
+        p.artistCredits = p.artistCredits.filter(credit => names.includes(credit.name));
+    }
     if (body.description !== undefined)
         p.description = text(body.description, 3000);
     if (body.visibility !== undefined) {
@@ -173,7 +193,7 @@ router.patch('/:id', signedIn, load, requireOwner, wrap(async (req, res) => {
     const upload = req.files?.cover;
     const removeCover = body.removeCover === true || body.removeCover === 'true';
     if (upload && removeCover) return res.status(400).json({ message: 'Choose whether to replace or remove the cover' });
-    const cover = upload ? await createCover(upload) : null;
+    const cover = upload ? await createStoredImage(upload) : null;
     if (cover || removeCover) {
         p.$where = { coverFile: previousCover ?? null };
         p.coverFile = cover ? `${coverReference}${cover.id}` : undefined;

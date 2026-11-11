@@ -15,6 +15,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    artistName: { type: String, default: "" },
+    artistBio: { type: String, default: "" },
+    artistWebsite: { type: String, default: "" },
+    artistPhoto: { type: mongoose.Schema.Types.ObjectId },
     imageUrl: {
         type: String,
         default: ""

@@ -12,6 +12,7 @@ export type Project = {
     _id: string;
     title: string;
     artist: string;
+    artistCredits?: { name: string; accountId?: string }[];
     description: string;
     coverUrl?: string;
     visibility: string;
