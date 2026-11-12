@@ -7,6 +7,7 @@ export interface Song {
     imageUrl: string;
     audioUrl: string;
     projectId?: string;
+    privatePlayback?: boolean;
     versionId?: string;
     versionLabel?: string;
     duration: number;

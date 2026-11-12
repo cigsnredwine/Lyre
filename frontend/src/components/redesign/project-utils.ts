@@ -6,6 +6,7 @@ export function projectSong(project: Project, version?: Version, share?: string 
   const v = version || project.versions.at(-1);
   if (!v) return null;
   return { _id: `project:${project._id}:${v._id}`, projectId: project._id, versionId: v._id, versionLabel: v.label,
+    privatePlayback: project.visibility !== 'public' || !v.isPublic,
     title: project.title, artist: project.artist, artists: [project.artist], imageUrl: media(project.coverUrl, share), audioUrl: media(v.audioUrl, share), duration: v.duration,
     albumId: null, createdAt: v.createdAt, updatedAt: project.updatedAt };
 }

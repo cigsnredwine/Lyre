@@ -1,3 +1,4 @@
+import { ArtistFollow } from '../models/artist-follow.model.js';
 import { Router } from 'express';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -31,13 +32,21 @@ router.use(async (req, res, next) => {
 const signedIn = (req, res, next) => req.projectUser ? next() : res.status(401).json({ message: 'Sign in to continue' });
 const owner = (p, req) => p.ownerId === req.projectUser?.id;
 const collaborator = (p, req) => owner(p, req) || (p.visibility !== 'private' && p.invitedEmails.includes(req.projectUser?.email?.toLowerCase()));
+const canInspectProjects = req => (
+    process.env.NODE_ENV === 'development' &&
+    process.env.LYRE_DEV_PROJECT_INSPECTION === 'true' &&
+    req.projectUser?.email === 'admin@lyre.test' &&
+    req.projectUser.email === process.env.ADMIN_EMAIL &&
+    ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) &&
+    ['GET', 'HEAD'].includes(req.method)
+);
 const access = (p, req) => collaborator(p, req) || p.visibility === 'public' || (p.visibility === 'unlisted' && req.query.share === p.shareToken);
 const load = async (req, res, next) => {
     try {
         if (!/^[a-f\d]{24}$/i.test(req.params.id))
             return res.status(404).json({ message: 'Project not found' });
         const p = await Project.findById(req.params.id);
-        if (!p || !access(p, req))
+        if (!p || p.deletedAt || (!access(p, req) && !canInspectProjects(req)))
             return res.status(404).json({ message: 'This project is private or the sharing link is no longer available.' });
         req.project = p;
         next();
@@ -51,7 +60,9 @@ const validDuration = value => { const seconds = Number(value); if (!Number.isFi
     throw Object.assign(Error('Audio duration must be between 0 and 86400 seconds'), { status: 400 }); return seconds; };
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const view = (p, req, summary = false) => {
-    const canEdit = owner(p, req), canListenPrivate = collaborator(p, req);
+    const canEdit = owner(p, req);
+    const inspecting = canInspectProjects(req);
+    const canListenPrivate = collaborator(p, req) || inspecting;
     const value = p.toObject();
     const names = (p.artist || '').split(',').map(name => name.trim()).filter(Boolean);
     value.artistCredits = names.map((name, index) => ({
@@ -59,6 +70,7 @@ const view = (p, req, summary = false) => {
         accountId: index === 0 ? p.ownerId : p.artistCredits.find(credit => credit.name === name)?.accountId,
     }));
     value.isOwner = canEdit;
+    if (inspecting && !canEdit) value.isInspection = true;
     value.isCollaborator = canListenPrivate;
     value.isFollowing = p.followers.includes(req.projectUser?.id);
     value.followerCount = p.followers.length;
@@ -68,7 +80,7 @@ const view = (p, req, summary = false) => {
         delete value.shareToken;
         delete value.invitedEmails;
     }
-    value.versions = value.versions.filter(v => canListenPrivate || v.isPublic).map(v => {
+    value.versions = value.versions.filter(v => !v.deletedAt && (canListenPrivate || v.isPublic)).map(v => {
         const { file, sourceUrl, ...rest } = v;
         return { ...rest, audioUrl: `/api/projects/${p.id}/media/${v._id}` };
     });
@@ -102,6 +114,11 @@ async function saveFile(file, kind) {
 const coverReference = 'db-cover:';
 router.get('/', wrap(async (req, res) => {
     const id = req.projectUser?.id;
+    if (req.query.scope === 'inspection') {
+        if (!canInspectProjects(req)) return res.status(403).json({ message: 'Development admin access is required' });
+        const projects = await Project.find({ deletedAt: null }).sort({ updatedAt: -1 });
+        return res.json(projects.map(p => view(p, req, req.query.details !== 'true')));
+    }
     let filter = { visibility: 'public' };
     if (req.query.scope === 'artist') {
         const artistId = req.query.artistId;
@@ -117,14 +134,18 @@ router.get('/', wrap(async (req, res) => {
     if (req.query.scope === 'following') {
         if (!id)
             return res.status(401).json({ message: 'Sign in to view updates' });
-        filter = { followers: id, $or: [{ visibility: 'public' }, { ownerId: id }, { visibility: { $ne: 'private' }, invitedEmails: req.projectUser.email.toLowerCase() }] };
+        const follows = await ArtistFollow.find({ followerId: id }).select('artistId');
+        filter = { $or: [
+            { visibility: 'public', ownerId: { $in: follows.map(f => f.artistId) } },
+            { followers: id, $or: [{ visibility: 'public' }, { ownerId: id }, { visibility: { $ne: 'private' }, invitedEmails: req.projectUser.email.toLowerCase() }] },
+        ] };
     }
     if (req.query.scope === 'invited') {
         if (!id)
             return res.status(401).json({ message: 'Sign in to view invitations' });
         filter = { visibility: { $ne: 'private' }, invitedEmails: req.projectUser.email.toLowerCase() };
     }
-    res.json((await Project.find(filter).sort({ updatedAt: -1 }).limit(100)).map(p => view(p, req, req.query.details !== 'true')));
+    res.json((await Project.find({ $and: [filter, { deletedAt: null }] }).sort({ updatedAt: -1 }).limit(100)).map(p => view(p, req, req.query.details !== 'true')));
 }));
 router.post('/', signedIn, wrap(async (req, res) => {
     const title = text(req.body.title, 120);
@@ -213,6 +234,19 @@ router.patch('/:id', signedIn, load, requireOwner, wrap(async (req, res) => {
     }
     res.json(view(p, req));
 }));
+// Keep files and records for recovery; deleted releases and versions cannot be read or streamed.
+router.delete('/:id', signedIn, load, requireOwner, wrap(async (req, res) => {
+    await Project.updateOne({ _id: req.project._id, ownerId: req.projectUser.id, deletedAt: null }, { $set: { deletedAt: new Date() } });
+    res.status(204).end();
+}));
+router.delete('/:id/versions/:versionId', signedIn, load, requireOwner, wrap(async (req, res) => {
+    const v = req.project.versions.id(req.params.versionId);
+    if (!v || v.deletedAt) return res.status(404).json({ message: 'Version not found' });
+    await Project.updateOne({ _id: req.project._id, ownerId: req.projectUser.id }, {
+        $set: { 'versions.$[version].deletedAt': new Date() },
+    }, { arrayFilters: [{ 'version._id': v._id, 'version.deletedAt': null }] });
+    res.json(view(await Project.findById(req.project._id), req));
+}));
 router.post('/:id/versions', signedIn, load, requireOwner, wrap(async (req, res) => {
     if (!req.files?.audio)
         return res.status(400).json({ message: 'Choose an audio file' });
@@ -227,7 +261,7 @@ router.post('/:id/versions', signedIn, load, requireOwner, wrap(async (req, res)
 }));
 router.patch('/:id/versions/:versionId', signedIn, load, requireOwner, wrap(async (req, res) => {
     const v = req.project.versions.id(req.params.versionId);
-    if (!v)
+    if (!v || v.deletedAt)
         return res.status(404).json({ message: 'Version not found' });
     const { label, note, isPublic } = req.body;
     if (label === undefined && note === undefined && isPublic === undefined)
@@ -264,7 +298,7 @@ router.patch('/:id/posts/:postId', signedIn, load, requireOwner, wrap(async (req
 }));
 router.post('/:id/comments', signedIn, load, wrap(async (req, res) => {
     const p = req.project, v = p.versions.id(req.body.versionId), body = text(req.body.body, 2000), timestamp = req.body.timestamp;
-    if (!v || (!collaborator(p, req) && !v.isPublic))
+    if (!v || v.deletedAt || (!collaborator(p, req) && !v.isPublic))
         return res.status(403).json({ message: 'This version is private' });
     if (!body || (timestamp !== undefined && (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp < 0 || timestamp > v.duration)))
         return res.status(400).json({ message: 'Write feedback and choose a valid timestamp' });
@@ -279,7 +313,7 @@ router.post('/:id/follow', signedIn, load, wrap(async (req, res) => {
 }));
 router.get('/:id/media/:versionId', load, wrap(async (req, res) => {
     const p = req.project, v = p.versions.id(req.params.versionId);
-    if (!v || (!collaborator(p, req) && !v.isPublic))
+    if (!v || v.deletedAt || (!collaborator(p, req) && !canInspectProjects(req) && !v.isPublic))
         return res.status(404).end();
     res.set('Cache-Control', 'private, no-store');
     if (v.file) {

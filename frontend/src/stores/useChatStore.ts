@@ -7,6 +7,7 @@ import { io } from "socket.io-client";
 type ActivityUpdate = {
 	userId: string;
 	activity: string;
+ projectId?: string | null;
 };
 
 interface ChatStore {
@@ -17,6 +18,7 @@ interface ChatStore {
 	isConnected: boolean;
 	onlineUsers: Set<string>;
 	userActivities: Map<string, string>;
+ listeningProjects: Map<string, string>;
 	messages: Message[];
 	messageCache: Record<string, Message[]>;
 	selectedUser: User | null;
@@ -46,6 +48,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 	isConnected: false,
 	onlineUsers: new Set(),
 	userActivities: new Map(),
+ listeningProjects: new Map(),
 	messages: [],
 	messageCache: {},
 	selectedUser: null,
@@ -90,7 +93,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 				set({ onlineUsers: new Set(users) });
 			});
 
-			socket.on("activities", (activities: [string, string][]) => {
+			socket.on("listening_projects", (projects: [string, string][]) => set({ listeningProjects: new Map(projects) }));
+
+ socket.on("activities", (activities: [string, string][]) => {
 				set({ userActivities: new Map(activities) });
 			});
 
@@ -140,11 +145,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 				});
 			});
 
-			socket.on("activity_updated", ({ userId, activity }: ActivityUpdate) => {
+			socket.on("activity_updated", ({ userId, activity, projectId }: ActivityUpdate) => {
 				set((state) => {
 					const newActivities = new Map(state.userActivities);
 					newActivities.set(userId, activity);
-					return { userActivities: newActivities };
+					const projects = new Map(state.listeningProjects);
+ if (projectId && /^[a-f\d]{24}$/i.test(projectId)) projects.set(userId, projectId); else projects.delete(userId);
+ return { userActivities: newActivities, listeningProjects: projects };
 				});
 			});
 
@@ -160,6 +167,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 users: [], selectedUser: null, error: null,
 				onlineUsers: new Set(),
 				userActivities: new Map(),
+ listeningProjects: new Map(),
 				messages: [],
 				messageCache: {},
 			});

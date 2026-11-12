@@ -97,6 +97,26 @@ try {
     assert.equal((await call('friend', root)).status, 404);
     assert(!(await call('friend', '?scope=following')).data.some(p => p._id === id));
     assert(!(await call('friend', '?scope=invited')).data.some(p => p._id === id));
+    // Delete only the temporary release created by this integration test.
+    assert.equal((await call('friend', root + '/versions/' + v1, 'DELETE')).status, 404);
+    await call('owner', root, 'PATCH', { visibility: 'public' });
+    assert.equal((await call('friend', root + '/versions/' + v1, 'DELETE')).status, 403);
+    assert.equal((await call('anonymous', root, 'DELETE')).status, 401);
+    const removed = await call('owner', root + '/versions/' + v1, 'DELETE');
+    assert.equal(removed.status, 200);
+    assert(!removed.data.versions.some(v => v._id === v1));
+    assert(!removed.data.comments.some(c => c.versionId === v1));
+    assert(removed.data.versions.some(v => v._id === v2));
+    assert.equal(await mediaStatus(v1, 'owner', null, true), 404);
+    assert.equal((await call('owner', root + '/versions/' + v1, 'PATCH', { label: 'Revive' })).status, 404);
+    assert.equal((await call('owner', root + '/versions/' + v1, 'DELETE')).status, 404);
+    assert.equal((await call('owner', root + '/versions/' + v2, 'DELETE')).status, 200);
+    assert.equal((await call('owner', root)).data.versions.length, 0);
+    assert.equal((await call('owner', root, 'DELETE')).status, 204);
+    assert.equal((await call('owner', root)).status, 404);
+    assert(!(await call('owner', '?scope=mine')).data.some(p => p._id === id));
+    assert(!(await call('anonymous', '')).data.some(p => p._id === id));
+    console.log('PASS: owner-only release/version deletion, feedback removal, deleted media denied, last-version deletion, deleted releases hidden.');
     console.log('PASS: private creation, collaborator access, owner-only edits, version preservation, image notes, timestamp validation, discovery, unlisted links, link rotation, range requests, private audio boundaries, follows.');
 }
 finally {

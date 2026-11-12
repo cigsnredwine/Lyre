@@ -8,13 +8,14 @@ import { usePlayerStore } from '@/stores/usePlayerStore';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import Artwork from '@/components/redesign/Artwork';
 import { EmptyState, ProjectSkeleton } from '@/components/redesign/ProjectComponents';
+import { projectsChanged } from '@/hooks/useProjects';
 import { projectSong, stageLabel } from '@/components/redesign/project-utils';
 import { media, stamp, type Project } from '@/pages/studio/project';
 import type { Album, Song } from '@/types';
 import './artist-profile.css';
 import '@/pages/studio/studio.css';
 
-type Artist = { id: string; name: string; bio: string; website: string; photoUrl: string; tracks: Song[]; albums: Pick<Album, '_id' | 'title' | 'artist' | 'imageUrl' | 'releaseYear'>[] };
+type Artist = { isFollowing: boolean; followerCount: number; id: string; name: string; bio: string; website: string; photoUrl: string; tracks: Song[]; albums: Pick<Album, '_id' | 'title' | 'artist' | 'imageUrl' | 'releaseYear'>[] };
 
 function artistPhoto(url: string) {
     if (!url.startsWith('/api/artists/')) return url;
@@ -28,6 +29,7 @@ export default function ProfilePage() {
     const id = artistId || ownId;
     const isOwner = Boolean(id && id === ownId);
     const [result, setResult] = useState<{ id: string; artist?: Artist; projects: Project[]; error?: string }>();
+    const [followingBusy, setFollowingBusy] = useState(false);
     const [editing, setEditing] = useState(false);
     const [busy, setBusy] = useState(false);
     const [image, setImage] = useState<{ file: File; url: string }>();
@@ -59,6 +61,16 @@ export default function ProfilePage() {
         return version ? projectSong(project, version) : null;
     }).find(Boolean) || artist.tracks[0];
 
+    async function followArtist() {
+        setFollowingBusy(true);
+        try {
+            const { data } = await axiosInstance.post(`/artists/${encodeURIComponent(id!)}/follow`, { follow: !artist!.isFollowing });
+            setResult(previous => previous && previous.id === id && previous.artist ? { ...previous, artist: { ...previous.artist, ...data } } : previous);
+            projectsChanged();
+        } catch { toast.error('Couldn’t update artist following. Try again.'); }
+        finally { setFollowingBusy(false); }
+    }
+
     function closeEditor() {
         setEditing(false);
         setImage(undefined);
@@ -87,8 +99,9 @@ export default function ProfilePage() {
             {photo && <img key={photo} src={photo} alt='' onError={e => { e.currentTarget.hidden = true; }} />}
             <div className='artist-intro'>
                 <h1>{artist.name}</h1>
-            {(firstSong || isOwner || artist.website) && <div className='artist-controls'>
+            {(firstSong || id || artist.website) && <div className='artist-controls'>
                 {firstSong && <button className='artist-play' aria-label={`Play ${artist.name}`} onClick={() => usePlayerStore.getState().setCurrentSong(firstSong)}><Play size={13} fill='currentColor' />Listen</button>}
+                {!isOwner && (ownId ? <button className='artist-edit' aria-pressed={artist.isFollowing} disabled={followingBusy} onClick={() => void followArtist()}>{followingBusy ? 'Saving…' : artist.isFollowing ? 'Following' : 'Follow artist'}</button> : <Link className='artist-edit' to={`/login?redirect=${encodeURIComponent('/profile/' + id)}`}>Follow artist</Link>)}
                 {isOwner && <>
                     <button className='artist-edit' onClick={() => setEditing(true)}><Pencil size={13} />Edit profile</button>
                     <Link className='artist-edit' to='/settings/account'><Settings2 size={13} />Account settings</Link>

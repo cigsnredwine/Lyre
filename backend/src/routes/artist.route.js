@@ -1,3 +1,6 @@
+import { ArtistFollow } from '../models/artist-follow.model.js';
+import { auth } from '../lib/auth.js';
+import { fromNodeHeaders } from 'better-auth/node';
 import { Router } from 'express';
 import { protectRoute } from '../middleware/auth.middleware.js';
 import { User } from '../models/user.model.js';
@@ -19,6 +22,23 @@ const profileView = user => ({
 });
 router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
 
+router.get('/following', protectRoute, async (req, res) => {
+    const follows = await ArtistFollow.find({ followerId: req.userId }).select('artistId');
+    const users = await User.find({ authUserId: { $in: follows.map(f => f.artistId) } }).select(fields);
+    res.json(users.map(profileView));
+});
+router.post('/:id/follow', protectRoute, async (req, res) => {
+    if (typeof req.body?.follow !== 'boolean') return res.status(400).json({ message: 'Specify whether to follow this artist' });
+    if (req.params.id === req.userId) return res.status(400).json({ message: 'You cannot follow yourself' });
+    if (!await User.exists({ authUserId: req.params.id })) return res.status(404).json({ message: 'Artist profile not found' });
+    const filter = { followerId: req.userId, artistId: req.params.id };
+    if (req.body.follow) {
+        try { await ArtistFollow.updateOne(filter, { $setOnInsert: filter }, { upsert: true }); }
+        catch (error) { if (error.code !== 11000) throw error; }
+    } else await ArtistFollow.deleteOne(filter);
+    res.json({ isFollowing: req.body.follow, followerCount: await ArtistFollow.countDocuments({ artistId: req.params.id }) });
+});
+
 router.get('/:id', async (req, res) => {
     const user = await User.findOne({ authUserId: req.params.id }).select(fields);
     if (!user) return res.status(404).json({ message: 'Artist profile not found' });
@@ -29,7 +49,12 @@ router.get('/:id', async (req, res) => {
         Album.find(uploads).sort({ createdAt: -1 }).limit(100)
             .select('title artist imageUrl releaseYear'),
     ]);
-    res.json({ ...profileView(user), tracks, albums });
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    const [following, followerCount] = await Promise.all([
+        session?.user ? ArtistFollow.exists({ followerId: session.user.id, artistId: user.authUserId }) : null,
+        ArtistFollow.countDocuments({ artistId: user.authUserId }),
+    ]);
+    res.json({ ...profileView(user), tracks, albums, isFollowing: Boolean(following), followerCount });
 });
 
 router.get('/:id/photo', async (req, res) => {

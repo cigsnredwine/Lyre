@@ -1,3 +1,4 @@
+import { Project } from '../models/project.model.js';
 import { Server } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from './auth.js';
@@ -5,11 +6,13 @@ import { Message } from '../models/message.model.js';
 import { friendIds, areFriends } from '../models/friendship.model.js';
 let io;
 const activities = new Map();
+const listeningProjects = new Map();
 const room = id => `user:${id}`;
 const online = id => Boolean(io?.sockets.adapter.rooms.get(room(id))?.size);
 const snapshot = async id => {
     const friends = await friendIds(id);
     io.to(room(id)).emit('users_online', friends.filter(online));
+    io.to(room(id)).emit('listening_projects', friends.filter(online).filter(id => listeningProjects.has(id)).map(id => [id, listeningProjects.get(id)]));
     io.to(room(id)).emit('activities', friends.filter(online).map(id => [id, activities.get(id) || 'Idle']));
 };
 export const refreshSocial = async ids => {
@@ -33,10 +36,26 @@ export const initializeSocket = server => {
             await snapshot(userId);
             for (const id of await friendIds(userId)) await snapshot(id);
         };
+        let activityRequest = 0;
         socket.on('update_activity', async data => {
             if (typeof data?.activity !== 'string' || data.activity.length > 500) return;
-            activities.set(userId, data.activity);
-            for (const id of await friendIds(userId)) io.to(room(id)).emit('activity_updated', { userId, activity: data.activity });
+            const request = ++activityRequest;
+            let activity = data.activity;
+            let projectId = null;
+            if (data.projectId) {
+                try {
+                    const project = /^[a-f\d]{24}$/i.test(data.projectId) ? await Project.findById(data.projectId) : null;
+                    const version = project?.versions.id(data.versionId);
+                    if (project?.visibility === 'public' && !project.deletedAt && version?.isPublic && !version.deletedAt) {
+                        projectId = String(project._id);
+                        activity = `Playing: ${project.title} - ${project.artist}`;
+                    } else activity = 'Idle';
+                } catch { activity = 'Idle'; }
+            }
+            if (request !== activityRequest || !socket.connected) return;
+            if (projectId) listeningProjects.set(userId, projectId); else listeningProjects.delete(userId);
+            activities.set(userId, activity);
+            for (const id of await friendIds(userId)) io.to(room(id)).emit('activity_updated', { userId, activity, projectId });
         });
         socket.on('send_message', async (data, ack) => {
             const reply = typeof ack === 'function' ? ack : () => {};
@@ -51,7 +70,7 @@ export const initializeSocket = server => {
             } catch { reply({ error: 'Message could not be sent' }); }
         });
         socket.on('disconnect', () => {
-            if (!online(userId)) activities.delete(userId);
+            if (!online(userId)) { activities.delete(userId); listeningProjects.delete(userId); }
             notifyPresence().catch(console.error);
         });
         notifyPresence().catch(console.error);

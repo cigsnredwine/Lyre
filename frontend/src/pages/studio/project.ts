@@ -19,6 +19,7 @@ export type Project = {
     stage: string;
     ownerId: string;
     isOwner: boolean;
+    isInspection?: boolean;
     isCollaborator: boolean;
     shareToken?: string;
     invitedEmails?: string[];
